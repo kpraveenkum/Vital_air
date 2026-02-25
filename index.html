@@ -1,0 +1,4205 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>Vital Air · Delhi-NCR & Maharashtra Air Quality Intelligence</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Leaflet.heat -->
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #0f5530;
+            --primary-light: #e6f4ea;
+            --primary-dark: #0a3e24;
+            --accent: #ff8c42;
+            --accent-light: #ffb07c;
+            --danger: #c5221f;
+            --warning: #ff9100;
+            --success: #2e7d32;
+            --info: #2196F3;
+            --bg: #f2f8f6;
+            --card-bg: #ffffff;
+            --border: #d0e2dd;
+            --text-primary: #1e3b37;
+            --text-secondary: #3f6a5c;
+            --shadow: 0 12px 30px -8px rgba(20, 60, 50, 0.15);
+            --navbar-bg: linear-gradient(135deg, #ffffff 0%, #f8fffc 100%);
+            --navbar-shadow: 0 4px 20px rgba(15, 85, 48, 0.15);
+            --panel-bg: #ffffff;
+            --input-bg: #f5faf8;
+            --legend-bg: #ffffff;
+
+            /* AQI Zone Colors */
+            --zone-good: rgba(0, 228, 0, 0.2);
+            --zone-moderate: rgba(255, 255, 0, 0.2);
+            --zone-unhealthy: rgba(255, 69, 0, 0.2);
+            --zone-very-unhealthy: rgba(255, 0, 0, 0.2);
+            --zone-hazardous: rgba(128, 0, 128, 0.2);
+        }
+
+        [data-theme="dark"] {
+            --primary: #2ecc71;
+            --primary-light: #1a3a2a;
+            --primary-dark: #1e4a2f;
+            --accent: #ffa75e;
+            --accent-light: #ffb07c;
+            --danger: #ff6b6b;
+            --warning: #ffb74d;
+            --success: #81c784;
+            --info: #64b5f6;
+            --bg: #1a1e24;
+            --card-bg: #2d3436;
+            --border: #4a5557;
+            --text-primary: #e9ecef;
+            --text-secondary: #adb5bd;
+            --shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.5);
+            --navbar-bg: linear-gradient(135deg, #2d3436 0%, #1e2925 100%);
+            --navbar-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            --panel-bg: #2d3436;
+            --input-bg: #3a4548;
+            --legend-bg: #2d3436;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        /* ========== LOADING OVERLAY ========== */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--bg);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.5s ease;
+        }
+
+        .loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loading-spinner-large {
+            text-align: center;
+            font-size: 1.5rem;
+            color: var(--primary);
+        }
+
+        .loading-spinner-large i {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            color: var(--accent);
+            animation: spin 2s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* ========== CONNECTION STATUS ========== */
+        .connection-status {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: var(--card-bg);
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-size: 0.8rem;
+            z-index: 1000;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .connection-status i {
+            font-size: 0.6rem;
+            color: #f44336;
+        }
+
+        .connection-status.connected i {
+            color: #4CAF50;
+        }
+
+        /* ========== ALERT BANNER ========== */
+        .alert-banner {
+            position: fixed;
+            top: 90px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 2000;
+            background: var(--card-bg);
+            border-radius: 50px;
+            padding: 12px 24px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            display: none;
+            align-items: center;
+            gap: 12px;
+            border-left: 6px solid;
+            animation: slideDown 0.3s ease;
+        }
+
+        .alert-banner.show {
+            display: flex;
+        }
+
+        .alert-banner.warning {
+            border-left-color: var(--warning);
+        }
+
+        .alert-banner.danger {
+            border-left-color: var(--danger);
+        }
+
+        .alert-banner i {
+            font-size: 1.2rem;
+        }
+
+        .alert-banner.warning i {
+            color: var(--warning);
+        }
+
+        .alert-banner.danger i {
+            color: var(--danger);
+        }
+
+        .alert-banner .alert-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 30px;
+            padding: 6px 16px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-left: 10px;
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateX(-50%) translateY(-20px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(-50%) translateY(0);
+                opacity: 1;
+            }
+        }
+
+        /* ========== NAVBAR ========== */
+        .navbar {
+            background: var(--navbar-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 0 clamp(8px, 4vw, 32px);
+            height: clamp(60px, 8vh, 80px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: var(--navbar-shadow);
+            backdrop-filter: blur(10px);
+            position: relative;
+            z-index: 100;
+            flex-shrink: 0;
+        }
+
+        .navbar::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 10%;
+            width: 80%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--primary), var(--accent), var(--primary), transparent);
+            border-radius: 100%;
+            opacity: 0.7;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: clamp(4px, 2vw, 12px);
+            font-weight: 700;
+            font-size: clamp(1rem, 5vw, 1.6rem);
+            background: linear-gradient(135deg, var(--primary) 0%, #1a7a45 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            white-space: nowrap;
+        }
+
+        .logo i {
+            color: var(--primary);
+            -webkit-text-fill-color: initial;
+            font-size: clamp(1.2rem, 6vw, 2rem);
+            filter: drop-shadow(0 2px 4px rgba(15, 85, 48, 0.3));
+        }
+
+        .badge-delhi {
+            background: var(--accent);
+            color: white;
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 30px;
+            margin-left: 8px;
+            font-weight: 400;
+            -webkit-text-fill-color: white;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: clamp(4px, 2vw, 32px);
+            background: rgba(255, 255, 255, 0.1);
+            padding: clamp(2px, 1vw, 8px) clamp(4px, 2vw, 16px);
+            border-radius: 40px;
+            backdrop-filter: blur(8px);
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: var(--text-primary);
+            font-size: clamp(0.7rem, 3.5vw, 1.1rem);
+            font-weight: 500;
+            padding: clamp(4px, 1.5vw, 8px) clamp(8px, 2vw, 20px);
+            border-radius: 30px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .nav-links a:hover,
+        .nav-links a.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .nav-links a i {
+            margin-right: 4px;
+            font-size: clamp(0.7rem, 3vw, 1rem);
+        }
+
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: clamp(5px, 2vw, 20px);
+        }
+
+        .user-menu i {
+            font-size: clamp(0.9rem, 4vw, 1.3rem);
+            color: var(--primary);
+            background: var(--card-bg);
+            padding: clamp(6px, 2vw, 10px);
+            border-radius: 50%;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .avatar {
+            width: clamp(32px, 8vw, 48px);
+            height: clamp(32px, 8vw, 48px);
+            background: linear-gradient(135deg, var(--primary) 0%, #2a9d8f 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: clamp(0.8rem, 4vw, 1.2rem);
+            border: 2px solid var(--card-bg);
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        /* Theme Toggle */
+        .theme-toggle {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 30px;
+            padding: clamp(2px, 1vw, 6px);
+            display: flex;
+            cursor: pointer;
+        }
+
+        .theme-toggle i {
+            padding: clamp(4px, 1.5vw, 8px) clamp(6px, 2vw, 12px);
+            border-radius: 25px;
+            font-size: clamp(0.7rem, 3vw, 1rem);
+            transition: all 0.2s;
+            background: transparent;
+            box-shadow: none;
+        }
+
+        .theme-toggle i.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        /* ========== MAIN DASHBOARD ========== */
+        .dashboard {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: clamp(4px, 2vw, 16px);
+            gap: clamp(4px, 2vw, 16px);
+            overflow: hidden;
+            min-height: 0;
+            height: calc(100vh - clamp(60px, 8vh, 80px));
+        }
+
+        @media (min-width: 768px) {
+            .dashboard {
+                flex-direction: row;
+            }
+        }
+
+        /* Panel Toggle Button */
+        .panel-toggle {
+            position: fixed;
+            bottom: 100px;
+            right: 20px;
+            z-index: 3000;
+            background: var(--primary);
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+            border: 2px solid white;
+        }
+
+        .panel-toggle:hover {
+            transform: scale(1.1);
+            background: var(--accent);
+        }
+
+        .panel-toggle i {
+            font-size: 1.2rem;
+        }
+
+        /* Right Panel with Collapsible State */
+        .right-col {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow-y: auto;
+            min-height: 0;
+            flex: 1;
+            transition: all 0.3s ease;
+        }
+
+        .right-col.collapsed {
+            display: none;
+        }
+
+        @media (min-width: 768px) {
+            .right-col {
+                width: 360px;
+                flex: none;
+            }
+        }
+
+        /* ========== TAB CONTENT ========== */
+        .tab-content {
+            display: none;
+            width: 100%;
+            height: 100%;
+            min-height: 0;
+            flex: 1;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .tab-content.active {
+            display: flex;
+            flex-direction: column;
+            gap: clamp(4px, 2vw, 16px);
+        }
+
+        @media (min-width: 768px) {
+            .tab-content.active {
+                flex-direction: row;
+            }
+        }
+
+        /* ========== LEFT COLUMN (MAP) ========== */
+        .left-col {
+            flex: 1.2;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            height: 40vh;
+            min-height: 300px;
+            transition: all 0.3s ease;
+        }
+
+        .left-col.expanded {
+            flex: 2;
+        }
+
+        @media (min-width: 768px) {
+            .left-col {
+                height: auto;
+                min-height: 0;
+            }
+        }
+
+        .map-container {
+            background: var(--card-bg);
+            border-radius: clamp(12px, 4vw, 20px);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            position: relative;
+            min-height: 0;
+        }
+
+        #map {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+            min-height: 200px;
+            background: #c8e0e0;
+            z-index: 1;
+        }
+
+        /* Sensor Marker Styles */
+        .sensor-marker {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .sensor-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            border: 2px solid white;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .sensor-icon:hover {
+            transform: scale(1.2);
+            z-index: 1000;
+        }
+
+        .sensor-icon.good {
+            background: #00e400;
+            color: #000;
+        }
+
+        .sensor-icon.moderate {
+            background: #ffff00;
+            color: #000;
+        }
+
+        .sensor-icon.unhealthy {
+            background: #ff7e00;
+            color: #fff;
+        }
+
+        .sensor-icon.very-unhealthy {
+            background: #ff0000;
+            color: #fff;
+        }
+
+        .sensor-icon.hazardous {
+            background: #800080;
+            color: #fff;
+        }
+
+        /* Zone Circle Styles */
+        .zone-circle {
+            fill-opacity: 0.25;
+            stroke-width: 3;
+            stroke-opacity: 0.8;
+        }
+
+        .zone-circle.good {
+            fill: #00e400;
+            stroke: #00e400;
+        }
+
+        .zone-circle.moderate {
+            fill: #ffd700;
+            stroke: #ffd700;
+        }
+
+        /* Gold instead of yellow for better visibility */
+        .zone-circle.unhealthy {
+            fill: #ff8c42;
+            stroke: #ff8c42;
+        }
+
+        /* Orange */
+        .zone-circle.very-unhealthy {
+            fill: #ff0000;
+            stroke: #ff0000;
+        }
+
+        /* Red */
+        .zone-circle.hazardous {
+            fill: #800080;
+            stroke: #800080;
+        }
+
+        /* Purple */
+
+        /* ========== CONTROLS CONTAINER ========== */
+        .controls-container {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+
+        .controls-container>* {
+            pointer-events: auto;
+        }
+
+        .heatmap-toggle-btn {
+            background: var(--card-bg);
+            backdrop-filter: blur(8px);
+            border-radius: 50px;
+            padding: 10px 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .heatmap-toggle-btn.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        .heatmap-toggle-btn .badge {
+            background: var(--primary);
+            color: white;
+            border-radius: 30px;
+            padding: 2px 8px;
+            font-size: 0.8rem;
+        }
+
+        .map-legend-btn {
+            background: var(--card-bg);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--shadow);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .map-legend-btn:hover {
+            transform: scale(1.1);
+            background: var(--accent);
+            color: white;
+        }
+
+        /* ========== PLAN YOUR JOURNEY PANEL ========== */
+        .route-panel {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            z-index: 2000;
+            width: 360px;
+            max-width: calc(100vw - 32px);
+            background: var(--card-bg);
+            border-radius: 20px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border);
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .route-panel.minimized {
+            width: 60px !important;
+            height: 60px !important;
+            border-radius: 30px !important;
+            overflow: hidden;
+            cursor: pointer;
+            background: var(--primary);
+        }
+
+        .route-panel.minimized .panel-header {
+            padding: 18px;
+            background: transparent;
+            justify-content: center;
+        }
+
+        .route-panel.minimized .panel-header i {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .route-panel.minimized .panel-header span,
+        .route-panel.minimized .panel-content {
+            display: none !important;
+        }
+
+        .panel-header {
+            padding: 16px;
+            background: var(--primary);
+            color: white;
+            font-weight: 600;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            border-radius: 20px 20px 0 0;
+            cursor: pointer;
+        }
+
+        .panel-header i {
+            margin-right: 10px;
+        }
+
+        .panel-content {
+            padding: 16px;
+            max-height: calc(100vh - 200px);
+            overflow-y: auto;
+        }
+
+        .input-group {
+            position: relative;
+            margin-bottom: 12px;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+            z-index: 2;
+        }
+
+        .route-input {
+            width: 100%;
+            padding: 14px 14px 14px 45px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            background: var(--input-bg);
+            color: var(--text-primary);
+            font-size: 15px;
+            transition: all 0.2s;
+        }
+
+        .route-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+
+        .suggestions-box {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+            z-index: 10000;
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+            border: 1px solid var(--border);
+        }
+
+        .suggestions-box.show {
+            display: block;
+        }
+
+        .suggestion-item {
+            padding: 12px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .suggestion-item:hover {
+            background: var(--primary-light);
+        }
+
+        .swap-btn {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--card-bg);
+            border: 2px solid var(--border);
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 2;
+            transition: all 0.2s;
+        }
+
+        .swap-btn:hover {
+            background: var(--primary-light);
+            border-color: var(--primary);
+        }
+
+        .current-location-btn {
+            width: 100%;
+            padding: 12px;
+            background: var(--primary-light);
+            border: 2px solid var(--primary);
+            border-radius: 12px;
+            color: var(--primary);
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .region-toggle {
+            display: flex;
+            gap: 8px;
+            margin: 10px 0 16px;
+            padding: 4px;
+            background: var(--input-bg);
+            border-radius: 40px;
+            border: 1px solid var(--border);
+        }
+
+        .region-btn {
+            flex: 1;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 30px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            background: transparent;
+            color: var(--text-secondary);
+            transition: all 0.3s ease;
+        }
+
+        .region-btn.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        .suggested-locations {
+            margin: 16px 0;
+        }
+
+        .suggested-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--text-secondary);
+        }
+
+        .location-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .location-chip {
+            padding: 6px 14px;
+            background: var(--input-bg);
+            border: 1px solid var(--border);
+            border-radius: 30px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .location-chip:hover {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        .route-info {
+            background: var(--input-bg);
+            border-radius: 12px;
+            padding: 14px;
+            margin-top: 16px;
+            border: 1px solid var(--border);
+            display: none;
+        }
+
+        .route-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px dashed var(--border);
+            font-size: 0.9rem;
+        }
+
+        .route-row:last-child {
+            border-bottom: none;
+        }
+
+        .route-row.safe-row {
+            color: var(--success);
+        }
+
+        .route-row.polluted-row {
+            color: var(--danger);
+        }
+
+        .route-recommendation {
+            margin-top: 12px;
+            padding: 10px;
+            background: var(--primary-light);
+            border-radius: 30px;
+            text-align: center;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .green-dot,
+        .red-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+        }
+
+        .green-dot {
+            background: var(--success);
+        }
+
+        .red-dot {
+            background: var(--danger);
+        }
+
+        /* ========== VEHICLE SIMULATION PANEL ========== */
+        .simulation-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 16px;
+            z-index: 2000;
+            width: 280px;
+            background: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border);
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .simulation-panel.minimized {
+            width: 50px;
+            height: 50px;
+            border-radius: 25px;
+            cursor: pointer;
+            background: var(--accent);
+        }
+
+        .simulation-panel.minimized .simulation-content {
+            display: none;
+        }
+
+        .simulation-panel.minimized .simulation-header {
+            padding: 0;
+            justify-content: center;
+            height: 50px;
+        }
+
+        .simulation-panel.minimized .simulation-header span,
+        .simulation-panel.minimized .simulation-header i:not(.fa-car) {
+            display: none;
+        }
+
+        .simulation-panel.minimized .simulation-header i.fa-car {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .simulation-header {
+            padding: 12px 16px;
+            background: var(--accent);
+            color: white;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+        }
+
+        .simulation-header i {
+            margin-right: 8px;
+        }
+
+        .simulation-content {
+            padding: 16px;
+        }
+
+        .simulation-controls {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .simulation-btn {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+        }
+
+        .simulation-btn.start {
+            background: var(--success);
+            color: white;
+        }
+
+        .simulation-btn.stop {
+            background: var(--danger);
+            color: white;
+        }
+
+        .simulation-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .mode-selector {
+            display: flex;
+            gap: 6px;
+            margin: 12px 0;
+        }
+
+        .mode-option {
+            flex: 1;
+            padding: 6px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--input-bg);
+            cursor: pointer;
+            text-align: center;
+            font-size: 0.8rem;
+            transition: all 0.2s ease;
+        }
+
+        .mode-option.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .simulation-stats {
+            background: var(--input-bg);
+            border-radius: 12px;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 0.85rem;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 4px 0;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 3px;
+            margin: 8px 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--accent);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        .vehicle-marker {
+            filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
+            transition: all 0.1s ease;
+        }
+
+        /* Risk Alert */
+        .risk-alert {
+            position: fixed;
+            top: 100px;
+            right: 20px;
+            background: var(--danger);
+            color: white;
+            padding: 16px 28px;
+            border-radius: 50px;
+            box-shadow: 0 10px 30px rgba(197, 34, 31, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 3000;
+            animation: slideInRight 0.3s ease;
+            display: none;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* Zone Alert - Larger and More Prominent */
+        .zone-alert {
+            position: fixed;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--card-bg);
+            color: var(--text-primary);
+            padding: 20px 32px;
+            border-radius: 60px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            z-index: 3000;
+            animation: slideUp 0.4s ease;
+            border-left: 8px solid;
+            display: none;
+            font-size: 1.2rem;
+            font-weight: 600;
+            min-width: 350px;
+            backdrop-filter: blur(10px);
+        }
+
+        .zone-alert i {
+            font-size: 1.8rem;
+        }
+
+        .zone-alert.good {
+            border-left-color: #00e400;
+        }
+
+        .zone-alert.moderate {
+            border-left-color: #ffd700;
+        }
+
+        .zone-alert.unhealthy {
+            border-left-color: #ff8c42;
+        }
+
+        .zone-alert.very-unhealthy {
+            border-left-color: #ff0000;
+        }
+
+        .zone-alert.hazardous {
+            border-left-color: #800080;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateX(-50%) translateY(100px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(-50%) translateY(0);
+                opacity: 1;
+            }
+        }
+
+        /* Zone Legend */
+        .zone-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 10px 0;
+            padding: 8px;
+            background: var(--input-bg);
+            border-radius: 8px;
+            font-size: 0.75rem;
+        }
+
+        .zone-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .zone-color {
+            width: 10px;
+            height: 10px;
+            border-radius: 3px;
+        }
+
+        .zone-good {
+            background: #00e400;
+            opacity: 0.5;
+        }
+
+        .zone-moderate {
+            background: #ffd700;
+            opacity: 0.5;
+        }
+
+        .zone-unhealthy {
+            background: #ff8c42;
+            opacity: 0.5;
+        }
+
+        .zone-very-unhealthy {
+            background: #ff0000;
+            opacity: 0.5;
+        }
+
+        .zone-hazardous {
+            background: #800080;
+            opacity: 0.5;
+        }
+
+        .legend {
+            padding: 8px 16px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            font-size: 0.75rem;
+            background: var(--legend-bg);
+        }
+
+        .legend span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .dot-red {
+            background: #ff0000;
+        }
+
+        .dot-orange {
+            background: #ff8c42;
+        }
+
+        .dot-yellow {
+            background: #ffd700;
+        }
+
+        .dot-green {
+            background: #00e400;
+        }
+
+        .dot-purple {
+            background: #800080;
+        }
+
+        .dot-blue {
+            background: #2196F3;
+        }
+
+        /* ========== RIGHT COLUMN ========== */
+        .right-col {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow-y: auto;
+            min-height: 0;
+            flex: 1;
+        }
+
+        @media (min-width: 768px) {
+            .right-col {
+                width: 360px;
+                flex: none;
+            }
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            padding: 16px;
+        }
+
+        .panel h3 {
+            font-size: 1rem;
+            margin-bottom: 12px;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .live-aqi-panel {
+            background: linear-gradient(135deg, var(--card-bg), var(--primary-light));
+        }
+
+        .aqi-large-display {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 12px;
+        }
+
+        .aqi-value {
+            font-size: 3rem;
+            font-weight: 800;
+            line-height: 1;
+            color: var(--text-primary);
+        }
+
+        .aqi-category {
+            font-size: 1rem;
+            font-weight: 600;
+            opacity: 0.9;
+            padding: 4px 12px;
+            border-radius: 30px;
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        .aqi-category.good {
+            background: #00e400;
+            color: #000;
+        }
+
+        .aqi-category.moderate {
+            background: #ffd700;
+            color: #000;
+        }
+
+        .aqi-category.unhealthy {
+            background: #ff8c42;
+            color: #fff;
+        }
+
+        .aqi-category.very-unhealthy {
+            background: #ff0000;
+            color: #fff;
+        }
+
+        .aqi-category.hazardous {
+            background: #800080;
+            color: #fff;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            padding: 4px 0;
+            border-bottom: 1px dashed var(--border);
+            font-size: 0.85rem;
+        }
+
+        .weather-info {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 12px;
+            padding: 10px;
+            background: var(--input-bg);
+            border-radius: 12px;
+        }
+
+        .weather-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .weather-item i {
+            color: var(--accent);
+            font-size: 1.1rem;
+            margin-bottom: 4px;
+        }
+
+        .weather-value {
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        .weather-label {
+            font-size: 0.65rem;
+            opacity: 0.7;
+        }
+
+        .pollutant-grid {
+            display: grid;
+            gap: 10px;
+        }
+
+        .pollutant-item {
+            display: grid;
+            grid-template-columns: 70px 45px 35px 1fr;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+        }
+
+        .pollutant-name {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .pollutant-name i {
+            color: var(--accent);
+            width: 18px;
+            font-size: 0.9rem;
+        }
+
+        .pollutant-value {
+            font-weight: 700;
+            text-align: right;
+        }
+
+        .pollutant-bar {
+            height: 6px;
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .pollutant-fill {
+            height: 100%;
+            border-radius: 3px;
+        }
+
+        .pm25-fill {
+            background: linear-gradient(90deg, #ff6b6b, #ff8e8e);
+        }
+
+        .pm10-fill {
+            background: linear-gradient(90deg, #ffb347, #ffa07a);
+        }
+
+        .no2-fill {
+            background: linear-gradient(90deg, #ff9f4b, #ffb347);
+        }
+
+        .co-fill {
+            background: linear-gradient(90deg, #4ecdc4, #45b7aa);
+        }
+
+        .o3-fill {
+            background: linear-gradient(90deg, #6c5ce7, #a29bfe);
+        }
+
+        .forecast-list {
+            margin: 10px 0;
+        }
+
+        .forecast-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 6px 0;
+        }
+
+        .forecast-time {
+            min-width: 45px;
+            font-weight: 600;
+            font-size: 0.8rem;
+        }
+
+        .forecast-bar {
+            flex: 1;
+            height: 20px;
+            background: var(--input-bg);
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        .forecast-fill {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 8px;
+            color: white;
+            font-size: 0.65rem;
+            font-weight: 600;
+        }
+
+        /* Forecast colors - no yellow, using gold instead */
+        .forecast-fill.good {
+            background: #00e400;
+        }
+
+        .forecast-fill.moderate {
+            background: #ffd700;
+            color: #000;
+        }
+
+        .forecast-fill.unhealthy {
+            background: #ff8c42;
+        }
+
+        .forecast-fill.very-unhealthy {
+            background: #ff0000;
+        }
+
+        .forecast-fill.hazardous {
+            background: #800080;
+        }
+
+        .forecast-summary {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 12px;
+            padding: 8px;
+            background: var(--input-bg);
+            border-radius: 10px;
+            font-size: 0.85rem;
+        }
+
+        .hotspots-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .hotspot-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 12px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .hotspot-item:hover {
+            transform: translateX(5px);
+        }
+
+        .hotspot-item.critical {
+            background: rgba(197, 34, 31, 0.15);
+            border-left: 4px solid #c5221f;
+        }
+
+        .hotspot-item.high {
+            background: rgba(255, 69, 0, 0.15);
+            border-left: 4px solid #ff4500;
+        }
+
+        .hotspot-item.moderate {
+            background: rgba(255, 145, 0, 0.12);
+            border-left: 4px solid #ff9100;
+        }
+
+        .hotspot-item.good {
+            background: rgba(0, 230, 118, 0.12);
+            border-left: 4px solid #00e676;
+        }
+
+        .hotspot-name {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .hotspot-name i {
+            color: var(--accent);
+            width: 18px;
+        }
+
+        .hotspot-aqi {
+            font-weight: 700;
+            padding: 4px 8px;
+            border-radius: 16px;
+            background: rgba(0, 0, 0, 0.1);
+            font-size: 0.85rem;
+        }
+
+        /* ========== INSIGHTS TAB ========== */
+        .insights-container {
+            width: 100%;
+            height: 100%;
+            overflow-y: auto;
+            padding: 20px;
+            background: var(--bg);
+            color: var(--text-primary);
+        }
+
+        .insights-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .insights-header h1 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .insights-header p {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        .insights-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .insights-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: var(--shadow);
+            transition: all 0.3s ease;
+        }
+
+        .insights-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .card-header h2 {
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-primary);
+        }
+
+        .live-badge {
+            background: linear-gradient(135deg, var(--accent), #ff6b6b);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 30px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.7;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        .aqi-meter-big {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 20px;
+            padding: 16px;
+            background: var(--input-bg);
+            border-radius: 20px;
+        }
+
+        .aqi-circle {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            transition: background 0.3s ease;
+        }
+
+        .aqi-number {
+            font-size: 2.5rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .aqi-label {
+            font-size: 0.8rem;
+            opacity: 0.9;
+        }
+
+        .aqi-details {
+            flex: 1;
+        }
+
+        .aqi-category-badge {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+            color: var(--text-primary);
+        }
+
+        .aqi-risk {
+            margin-bottom: 8px;
+            opacity: 0.9;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .aqi-confidence {
+            font-size: 0.85rem;
+            opacity: 0.8;
+            color: var(--text-secondary);
+        }
+
+        .confidence-bar {
+            width: 100%;
+            height: 6px;
+            background: var(--border);
+            border-radius: 3px;
+            margin-top: 8px;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: var(--accent);
+            border-radius: 3px;
+            transition: width 0.5s ease;
+        }
+
+        .pollutant-radar-chart {
+            height: 250px;
+            margin: 20px 0;
+        }
+
+        .pollutant-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .pollutant-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: var(--input-bg);
+            border-radius: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .pollutant-card:hover {
+            transform: translateY(-3px);
+            background: var(--primary-light);
+        }
+
+        .pollutant-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--accent);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+        }
+
+        .pollutant-data {
+            flex: 1;
+        }
+
+        .pollutant-label {
+            font-size: 0.75rem;
+            opacity: 0.8;
+            display: block;
+            color: var(--text-secondary);
+        }
+
+        .pollutant-value-large {
+            font-size: 1.3rem;
+            font-weight: 700;
+            line-height: 1.2;
+            color: var(--text-primary);
+        }
+
+        .forecast-chart-container {
+            height: 200px;
+            margin: 20px 0;
+        }
+
+        .forecast-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin: 15px 0;
+        }
+
+        .stat-item {
+            padding: 12px;
+            background: var(--input-bg);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+            color: var(--text-primary);
+        }
+
+        .stat-item:hover {
+            transform: scale(1.05);
+            background: var(--primary-light);
+        }
+
+        .stat-item i {
+            color: var(--accent);
+            font-size: 1.2rem;
+        }
+
+        .stat-item span {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .stat-item strong {
+            font-size: 1.1rem;
+            display: block;
+            color: var(--accent);
+        }
+
+        .alerts-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 15px 0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .alert-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 16px;
+            background: var(--input-bg);
+            border-left: 4px solid;
+            transition: all 0.3s ease;
+            color: var(--text-primary);
+        }
+
+        .alert-item:hover {
+            transform: translateX(5px);
+            background: var(--primary-light);
+        }
+
+        .alert-item.critical {
+            border-left-color: #d50000;
+        }
+
+        .alert-item.high {
+            border-left-color: #ff5252;
+        }
+
+        .alert-item.warning {
+            border-left-color: #ff9100;
+        }
+
+        .alert-item.good {
+            border-left-color: #00e676;
+        }
+
+        .alert-item i {
+            font-size: 1.2rem;
+        }
+
+        .alert-item.critical i {
+            color: #d50000;
+        }
+
+        .alert-item.high i {
+            color: #ff5252;
+        }
+
+        .alert-item.warning i {
+            color: #ff9100;
+        }
+
+        .alert-item.good i {
+            color: #00e676;
+        }
+
+        .health-advisories {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .advisory {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: var(--input-bg);
+            border-radius: 16px;
+            border-left: 4px solid;
+            transition: all 0.3s ease;
+            color: var(--text-primary);
+        }
+
+        .advisory:hover {
+            transform: translateX(5px);
+            background: var(--primary-light);
+        }
+
+        .advisory.critical {
+            border-left-color: #d50000;
+        }
+
+        .advisory.high {
+            border-left-color: #ff5252;
+        }
+
+        .advisory.medium {
+            border-left-color: #ff9100;
+        }
+
+        .advisory.good {
+            border-left-color: #00e676;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .search-box input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+            border-radius: 30px;
+            background: var(--input-bg);
+            color: var(--text-primary);
+            font-size: 0.95rem;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .search-box button {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: var(--accent);
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .search-box button:hover {
+            transform: scale(1.1);
+        }
+
+        .popular-locations {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 15px 0;
+        }
+
+        .chip {
+            padding: 8px 16px;
+            background: var(--input-bg);
+            border: 1px solid var(--border);
+            border-radius: 30px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: var(--text-primary);
+        }
+
+        .chip:hover {
+            background: var(--accent);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .pollution-sources {
+            margin: 15px 0;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .source-item {
+            margin-bottom: 12px;
+        }
+
+        .source-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+        }
+
+        .source-bar {
+            height: 24px;
+            background: var(--input-bg);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .source-bar div {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), #ffb347);
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 12px;
+            color: white;
+            font-weight: 600;
+            font-size: 0.8rem;
+            border-radius: 12px;
+            transition: width 0.5s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .source-bar div::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            100% {
+                left: 100%;
+            }
+        }
+
+        .insights-footer {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .insights-footer span {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .insights-footer i {
+            color: var(--accent);
+        }
+
+        .toast-notification {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--card-bg);
+            color: var(--text-primary);
+            padding: 12px 24px;
+            border-radius: 50px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 10000;
+            transition: transform 0.3s ease;
+            border-left: 4px solid var(--danger);
+        }
+
+        .toast-notification.show {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .loading-spinner {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-secondary);
+        }
+
+        .loading-spinner i {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            color: var(--accent);
+            animation: spin 1s linear infinite;
+        }
+
+        .error-message {
+            text-align: center;
+            padding: 20px;
+            color: var(--danger);
+            background: rgba(197, 34, 31, 0.1);
+            border-radius: 12px;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner-large">
+            <i class="fas fa-leaf fa-spin"></i>
+            <span>Vital Air · Loading Air Quality Data...</span>
+        </div>
+    </div>
+
+    <!-- Connection Status -->
+    <div class="connection-status" id="connectionStatus">
+        <i class="fas fa-circle"></i> Backend: <span id="backendStatus">Checking...</span>
+    </div>
+
+    <!-- Alert Banner -->
+    <div class="alert-banner" id="alertBanner">
+        <i class="fas fa-exclamation-triangle"></i>
+        <span id="alertMessage"></span>
+        <button class="alert-btn" id="dismissAlert">Got it</button>
+    </div>
+
+    <!-- Risk Alert -->
+    <div class="risk-alert" id="riskAlert">
+        <i class="fas fa-exclamation-triangle"></i>
+        <span id="riskMessage">Vehicle entered high pollution zone!</span>
+    </div>
+
+    <!-- Zone Alert -->
+    <div class="zone-alert" id="zoneAlert">
+        <i class="fas fa-map-marked-alt"></i>
+        <span id="zoneAlertMessage"></span>
+    </div>
+
+    <!-- Panel Toggle Button -->
+    <div class="panel-toggle" id="panelToggleBtn" title="Hide Side Panel">
+        <i class="fas fa-chevron-right"></i>
+    </div>
+
+    <nav class="navbar">
+        <div class="logo">
+            <i class="fas fa-leaf"></i>
+            VitalAir<span class="mobile-hidden"></span>
+            <span class="badge-delhi" id="regionBadge">Delhi-NCR</span>
+        </div>
+        <div class="nav-links">
+            <a class="active" id="tabOverviewBtn"><i class="fas fa-map"></i> <span class="mobile-hidden">Live
+                    Map</span></a>
+            <a id="tabInsightsBtn"><i class="fas fa-chart-line"></i> <span class="mobile-hidden">Deep
+                    Insights</span></a>
+        </div>
+        <div class="user-menu">
+            <div class="theme-toggle" id="themeToggle">
+                <i class="fas fa-sun active" data-theme="light"></i>
+                <i class="fas fa-moon" data-theme="dark"></i>
+            </div>
+            <div class="avatar" id="avatar">🌍</div>
+        </div>
+    </nav>
+
+    <div class="dashboard">
+        <!-- Overview Tab -->
+        <div id="tabOverview" class="tab-content active">
+            <div class="left-col" id="leftCol">
+                <div class="map-container">
+                    <div id="map"></div>
+
+                    <!-- Map Controls -->
+                    <div class="controls-container">
+                        <div class="heatmap-toggle-btn active" id="heatmapToggleBtn">
+                            <i class="fas fa-fire"></i>
+                            <span class="btn-text">Heatmap</span>
+                            <span class="badge" id="heatmapStatus">ON</span>
+                        </div>
+                        <div class="map-legend-btn" id="mapLegendBtn">
+                            <i class="fas fa-info-circle"></i>
+                        </div>
+                    </div>
+
+                    <!-- Plan Your Journey Panel -->
+                    <div class="route-panel" id="routePanel">
+                        <div class="panel-header" id="routePanelHeader">
+                            <i class="fas fa-route"></i> <span>Plan Your Journey</span>
+                        </div>
+
+                        <div class="panel-content">
+                            <button class="current-location-btn" id="useCurrentLocation">
+                                <i class="fas fa-map-pin"></i> Use Current Location
+                            </button>
+
+                            <!-- Region Toggle -->
+                            <div class="region-toggle">
+                                <button class="region-btn active" data-region="delhi">Delhi-NCR</button>
+                                <button class="region-btn" data-region="maharashtra">Maharashtra</button>
+                            </div>
+
+                            <div class="input-group">
+                                <span class="input-icon"><i class="fas fa-circle" style="color: #2e7d32;"></i></span>
+                                <input type="text" class="route-input" id="startInput" placeholder="Starting point...">
+                                <div class="swap-btn" id="swapPoints"><i class="fas fa-arrows-alt-v"></i></div>
+                                <div class="suggestions-box" id="startSuggestions"></div>
+                            </div>
+
+                            <div class="input-group">
+                                <span class="input-icon"><i class="fas fa-flag" style="color: #c5221f;"></i></span>
+                                <input type="text" class="route-input" id="destInput" placeholder="Destination...">
+                                <div class="suggestions-box" id="destSuggestions"></div>
+                            </div>
+
+                            <!-- Suggested Locations -->
+                            <div class="suggested-locations">
+                                <div class="suggested-title"><i class="fas fa-star" style="color: var(--accent);"></i>
+                                    Suggested Locations</div>
+                                <div class="location-chips" id="suggestedChips"></div>
+                            </div>
+
+                            <button class="current-location-btn" id="planRouteBtn"
+                                style="background: var(--primary); color: white; border: none;">
+                                <i class="fas fa-route"></i> Plan Safe Route
+                            </button>
+
+
+                        </div>
+                    </div>
+
+                    <!-- Vehicle Simulation Panel -->
+                    <div class="simulation-panel" id="simulationPanel">
+                        <div class="simulation-header" id="simulationHeader">
+                            <span><i class="fas fa-car"></i> Vehicle Sim</span>
+                            <i class="fas fa-minus" id="toggleSimulation"></i>
+                        </div>
+                        <div class="simulation-content">
+                            <div class="simulation-controls">
+                                <button class="simulation-btn start" id="startSimBtn">
+                                    <i class="fas fa-play"></i> Start
+                                </button>
+                                <button class="simulation-btn stop" id="stopSimBtn" disabled>
+                                    <i class="fas fa-stop"></i> Stop
+                                </button>
+                            </div>
+
+                            <div class="mode-selector">
+                                <div class="mode-option active" data-mode="car">
+                                    <i class="fas fa-car"></i>
+                                </div>
+                                <div class="mode-option" data-mode="walk">
+                                    <i class="fas fa-walking"></i>
+                                </div>
+                                <div class="mode-option" data-mode="cycle">
+                                    <i class="fas fa-bicycle"></i>
+                                </div>
+                            </div>
+
+                            <div class="zone-legend">
+                                <div class="zone-item"><span class="zone-color zone-good"></span> Good</div>
+                                <div class="zone-item"><span class="zone-color zone-moderate"></span> Moderate</div>
+                                <div class="zone-item"><span class="zone-color zone-unhealthy"></span> Unhealthy</div>
+                                <div class="zone-item"><span class="zone-color zone-very-unhealthy"></span> V.Unhealthy
+                                </div>
+                                <div class="zone-item"><span class="zone-color zone-hazardous"></span> Hazardous</div>
+                            </div>
+
+                            <div class="simulation-stats">
+                                <div class="stat-row">
+                                    <span>Status:</span>
+                                    <strong id="simStatus">Ready</strong>
+                                </div>
+                                <div class="stat-row">
+                                    <span>Mode:</span>
+                                    <strong id="simMode">Car</strong>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="simProgress" style="width: 0%"></div>
+                                </div>
+                                <div class="stat-row">
+                                    <span>Progress:</span>
+                                    <span id="simProgressText">0%</span>
+                                </div>
+                                <div class="stat-row">
+                                    <span>Current AQI:</span>
+                                    <span id="simCurrentAQI">--</span>
+                                </div>
+                                <div class="stat-row">
+                                    <span>Zone Risk:</span>
+                                    <span id="simZoneRisk">None</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Map Legend -->
+                    <div class="legend" id="mapLegend">
+                        <span><span class="dot dot-purple"></span> Hazardous (300+)</span>
+                        <span><span class="dot dot-red"></span> Very Unhealthy (200-300)</span>
+                        <span><span class="dot dot-orange"></span> Unhealthy (150-200)</span>
+                        <span><span class="dot dot-yellow"></span> Moderate (100-150)</span>
+                        <span><span class="dot dot-green"></span> Good (0-100)</span>
+                        <span><span class="dot dot-blue"></span> Your Location</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="right-col" id="rightCol">
+                <!-- Live AQI Card -->
+                <div class="panel live-aqi-panel">
+                    <h3><i class="fas fa-circle" style="color: #2e7d32;"></i> Live AQI</h3>
+                    <div class="aqi-large-display">
+                        <span class="aqi-value" id="localAQI">--</span>
+                        <span class="aqi-category" id="aqiCategory">--</span>
+                    </div>
+                    <div class="info-row"><span>Location:</span> <strong id="placeName">--</strong></div>
+                    <div class="info-row"><span>Zone:</span> <strong id="currentZone">--</strong></div>
+
+                    <!-- Weather Information -->
+                    <div class="weather-info" id="weatherInfo">
+                        <div class="weather-item">
+                            <i class="fas fa-thermometer-half"></i>
+                            <span class="weather-value" id="temperature">--</span>
+                            <span class="weather-label">°C</span>
+                        </div>
+                        <div class="weather-item">
+                            <i class="fas fa-wind"></i>
+                            <span class="weather-value" id="windSpeed">--</span>
+                            <span class="weather-label">km/h</span>
+                        </div>
+                        <div class="weather-item">
+                            <i class="fas fa-compass"></i>
+                            <span class="weather-value" id="windDirection">--</span>
+                            <span class="weather-label">direction</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pollutant Breakdown -->
+                <div class="panel">
+                    <h3><i class="fas fa-flask"></i> Pollutant Breakdown</h3>
+                    <div class="pollutant-grid">
+                        <div class="pollutant-item">
+                            <span class="pollutant-name"><i class="fas fa-smog"></i> PM2.5</span>
+                            <span class="pollutant-value" id="pm25value">--</span>
+                            <span class="pollutant-unit">µg/m³</span>
+                            <div class="pollutant-bar">
+                                <div class="pollutant-fill pm25-fill" id="pm25bar" style="width:0%"></div>
+                            </div>
+                        </div>
+                        <div class="pollutant-item">
+                            <span class="pollutant-name"><i class="fas fa-dust-storm"></i> PM10</span>
+                            <span class="pollutant-value" id="pm10value">--</span>
+                            <span class="pollutant-unit">µg/m³</span>
+                            <div class="pollutant-bar">
+                                <div class="pollutant-fill pm10-fill" id="pm10bar" style="width:0%"></div>
+                            </div>
+                        </div>
+                        <div class="pollutant-item">
+                            <span class="pollutant-name"><i class="fas fa-industry"></i> NO₂</span>
+                            <span class="pollutant-value" id="no2value">--</span>
+                            <span class="pollutant-unit">µg/m³</span>
+                            <div class="pollutant-bar">
+                                <div class="pollutant-fill no2-fill" id="no2bar" style="width:0%"></div>
+                            </div>
+                        </div>
+                        <div class="pollutant-item">
+                            <span class="pollutant-name"><i class="fas fa-gas-pump"></i> CO</span>
+                            <span class="pollutant-value" id="covalue">--</span>
+                            <span class="pollutant-unit">ppm</span>
+                            <div class="pollutant-bar">
+                                <div class="pollutant-fill co-fill" id="cobar" style="width:0%"></div>
+                            </div>
+                        </div>
+                        <div class="pollutant-item">
+                            <span class="pollutant-name"><i class="fas fa-sun"></i> O₃</span>
+                            <span class="pollutant-value" id="o3value">--</span>
+                            <span class="pollutant-unit">ppb</span>
+                            <div class="pollutant-bar">
+                                <div class="pollutant-fill o3-fill" id="o3bar" style="width:0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 24-Hour Forecast -->
+                <div class="panel">
+                    <h3><i class="fas fa-chart-line"></i> 24-Hour Forecast</h3>
+                    <div id="forecastList" class="forecast-list"></div>
+                    <div class="forecast-summary">
+                        <span><i class="fas fa-arrow-up"></i> Peak: <span id="peakTime">--</span></span>
+                        <span><i class="fas fa-chart-simple"></i> Avg: <span id="avgAQI">--</span></span>
+                    </div>
+                </div>
+
+                <!-- Hotspots -->
+                <div class="panel">
+                    <h3><i class="fas fa-fire"></i> Hotspots</h3>
+                    <div class="hotspots-list" id="hotspotsList">
+                        <div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Insights Tab -->
+        <div id="tabInsights" class="tab-content">
+            <div class="insights-container">
+                <div class="insights-header">
+                    <h1>Air Quality Deep Insights</h1>
+                    <p>Real-time analysis · Health recommendations · Predictive models</p>
+                </div>
+
+                <div class="insights-grid">
+                    <!-- Card 1: Current Status -->
+                    <div class="insights-card">
+                        <div class="card-header">
+                            <h2><i class="fas fa-location-dot" style="color: var(--accent);"></i> Current Status</h2>
+                            <span class="live-badge"><i class="fas fa-circle"></i> LIVE</span>
+                        </div>
+
+                        <div class="aqi-meter-big">
+                            <div class="aqi-circle" id="insightsAqiCircle" style="background: #00e400;">
+                                <span class="aqi-number" id="insightsAQI">--</span>
+                                <span class="aqi-label">AQI</span>
+                            </div>
+                            <div class="aqi-details">
+                                <div class="aqi-category-badge" id="insightsBadge">--</div>
+                                <div class="aqi-risk" id="insightsRisk">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    <span>Loading...</span>
+                                </div>
+                                <div class="aqi-confidence">
+                                    <span>Confidence: <span id="insightsConfidence">--</span>%</span>
+                                    <div class="confidence-bar">
+                                        <div class="confidence-fill" id="insightsConfidenceFill" style="width: 0%">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="pollutant-radar-chart">
+                            <canvas id="pollutantChart"></canvas>
+                        </div>
+
+                        <div class="pollutant-cards">
+                            <div class="pollutant-card">
+                                <div class="pollutant-icon"><i class="fas fa-smog"></i></div>
+                                <div class="pollutant-data">
+                                    <span class="pollutant-label">PM2.5</span>
+                                    <span class="pollutant-value-large" id="insightsPm25">--</span>
+                                </div>
+                            </div>
+                            <div class="pollutant-card">
+                                <div class="pollutant-icon"><i class="fas fa-dust-storm"></i></div>
+                                <div class="pollutant-data">
+                                    <span class="pollutant-label">PM10</span>
+                                    <span class="pollutant-value-large" id="insightsPm10">--</span>
+                                </div>
+                            </div>
+                            <div class="pollutant-card">
+                                <div class="pollutant-icon"><i class="fas fa-industry"></i></div>
+                                <div class="pollutant-data">
+                                    <span class="pollutant-label">NO₂</span>
+                                    <span class="pollutant-value-large" id="insightsNo2">--</span>
+                                </div>
+                            </div>
+                            <div class="pollutant-card">
+                                <div class="pollutant-icon"><i class="fas fa-gas-pump"></i></div>
+                                <div class="pollutant-data">
+                                    <span class="pollutant-label">CO</span>
+                                    <span class="pollutant-value-large" id="insightsCo">--</span>
+                                </div>
+                            </div>
+                            <div class="pollutant-card">
+                                <div class="pollutant-icon"><i class="fas fa-sun"></i></div>
+                                <div class="pollutant-data">
+                                    <span class="pollutant-label">O₃</span>
+                                    <span class="pollutant-value-large" id="insightsO3">--</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card 2: Forecast & Alerts -->
+                    <div class="insights-card">
+                        <h2 style="font-size: 1.3rem; margin-bottom: 15px;"><i class="fas fa-clock"
+                                style="color: var(--accent);"></i> 24-Hour Forecast</h2>
+
+                        <div class="forecast-chart-container">
+                            <canvas id="hourlyChart"></canvas>
+                        </div>
+
+                        <div class="forecast-stats">
+                            <div class="stat-item">
+                                <i class="fas fa-arrow-up"></i>
+                                <div>
+                                    <span>Peak at</span>
+                                    <strong id="insightsPeakTime">--</strong>
+                                </div>
+                            </div>
+                            <div class="stat-item">
+                                <i class="fas fa-chart-line"></i>
+                                <div>
+                                    <span>Average</span>
+                                    <strong id="insightsAvg">--</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <h2 style="font-size: 1.3rem; margin: 20px 0 10px;"><i class="fas fa-exclamation-triangle"
+                                style="color: var(--accent);"></i> Active Alerts</h2>
+                        <div class="alerts-container" id="alertsContainer">
+                            <div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Loading alerts...</div>
+                        </div>
+
+                        <h2 style="font-size: 1.3rem; margin: 20px 0 10px;"><i class="fas fa-notes-medical"
+                                style="color: var(--accent);"></i> Health Advice</h2>
+                        <div class="health-advisories" id="healthAdvisories">
+                            <div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Loading advice...</div>
+                        </div>
+                    </div>
+
+                    <!-- Card 3: Location Search & Sources -->
+                    <div class="insights-card">
+                        <h2 style="font-size: 1.3rem; margin-bottom: 15px;"><i class="fas fa-map-pin"
+                                style="color: var(--accent);"></i> Location Search</h2>
+
+                        <div class="search-box">
+                            <input type="text" id="insightsSearchInput" placeholder="Search city...">
+                            <button id="insightsSearchBtn"><i class="fas fa-search"></i></button>
+                        </div>
+
+                        <div class="popular-locations" id="insightsPopularLocations">
+                            <!-- Will be populated by JS -->
+                        </div>
+
+                        <h2 style="font-size: 1.3rem; margin: 20px 0 10px;"><i class="fas fa-chart-pie"
+                                style="color: var(--accent);"></i> Pollution Sources</h2>
+                        <div class="pollution-sources" id="pollutionSources">
+                            <div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Loading sources...</div>
+                        </div>
+
+                        <div class="insights-footer">
+                            <span><i class="fas fa-satellite"></i> Real-time</span>
+                            <span><i class="fas fa-microchip"></i> ML Powered</span>
+                            <span><i class="fas fa-shield"></i></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div class="toast-notification" id="alertToast">
+        <i class="fas fa-exclamation-triangle"></i>
+        <span id="toastMessage"></span>
+    </div>
+
+    <script>
+        (function () {
+            'use strict';
+
+            // ========== CONFIGURATION ==========
+            const API_BASE_URL = '';
+
+            const ENDPOINTS = {
+                health: `/api/health`,
+                predict: `/api/predict`,
+                forecast: `/api/forecast`,
+                safeRoute: `/api/safe-route`,
+                heatmap: `/api/heatmap`,
+                hotspots: `/api/hotspots`,
+                pollutionSources: `/api/pollution-sources`,
+                searchLocations: `/api/search-locations`,
+                sensors: `/api/sensors`,
+                zones: `/api/zones`
+            };
+
+            // ========== STATE VARIABLES ==========
+            let currentRegion = 'delhi';
+            let isBackendConnected = false;
+            let currentMarker = null;
+            let startMarker = null;
+            let destMarker = null;
+            let safeRouteLayer = null;
+            let pollutedRouteLayer = null;
+            let heatmapLayer = null;
+            let heatmapVisible = true;
+            let pollutantChart = null;
+            let hourlyChart = null;
+            let connectionCheckInterval = null;
+            let alertTimeout = null;
+            let riskAlertTimeout = null;
+            let zoneAlertTimeout = null;
+
+            // Simulation variables
+            let simulationMarker = null;
+            let simulationPath = [];
+            let currentPathIndex = 0;
+            let animationInterval = null;
+            let currentMode = 'car';
+            let lastZoneAlert = '';
+            let simulationRouteType = 'safe';
+
+            // Sensors and Zones
+            let sensorMarkers = [];
+            let zoneLayers = [];
+
+            // Heatmap update interval
+            let heatmapUpdateInterval = null;
+
+            // Panel toggle state
+            let isPanelCollapsed = false;
+
+            // Location database
+            const locations = {
+                delhi: [
+                    { name: 'New Delhi', lat: 28.6139, lng: 77.2090 },
+                    { name: 'Connaught Place', lat: 28.6270, lng: 77.2160 },
+                    { name: 'Anand Vihar', lat: 28.6468, lng: 77.3164 },
+                    { name: 'ITO', lat: 28.6298, lng: 77.2423 },
+                    { name: 'RK Puram', lat: 28.5633, lng: 77.1769 },
+                    { name: 'Dwarka', lat: 28.5704, lng: 77.0653 },
+                    { name: 'Rohini', lat: 28.7344, lng: 77.0895 },
+                    { name: 'Noida', lat: 28.5355, lng: 77.3910 },
+                    { name: 'Gurgaon', lat: 28.4595, lng: 77.0266 },
+                    { name: 'Faridabad', lat: 28.4089, lng: 77.3178 }
+                ],
+                maharashtra: [
+                    { name: 'Mumbai', lat: 19.0760, lng: 72.8777 },
+                    { name: 'Pune', lat: 18.5204, lng: 73.8567 },
+                    { name: 'Nagpur', lat: 21.1458, lng: 79.0882 },
+                    { name: 'Nashik', lat: 19.9975, lng: 73.7898 },
+                    { name: 'Aurangabad', lat: 19.8762, lng: 75.3433 },
+                    { name: 'Kolhapur', lat: 16.6913, lng: 74.2449 },
+                    { name: 'Thane', lat: 19.2183, lng: 72.9781 },
+                    { name: 'Navi Mumbai', lat: 19.0330, lng: 73.0297 }
+                ]
+            };
+
+            const suggestedLocations = {
+                delhi: [
+                    { name: 'New Delhi', lat: 28.6139, lng: 77.2090 },
+                    { name: 'Anand Vihar', lat: 28.6468, lng: 77.3164 },
+                    { name: 'RK Puram', lat: 28.5633, lng: 77.1769 },
+                    { name: 'Noida', lat: 28.5355, lng: 77.3910 },
+                    { name: 'Gurgaon', lat: 28.4595, lng: 77.0266 }
+                ],
+                maharashtra: [
+                    { name: 'Mumbai', lat: 19.0760, lng: 72.8777 },
+                    { name: 'Pune', lat: 18.5204, lng: 73.8567 },
+                    { name: 'Nagpur', lat: 21.1458, lng: 79.0882 },
+                    { name: 'Nashik', lat: 19.9975, lng: 73.7898 },
+                    { name: 'Kolhapur', lat: 16.6913, lng: 74.2449 }
+                ]
+            };
+
+            // Sample zone data for demo
+            const demoZones = {
+                delhi: [
+                    {
+                        id: 1,
+                        name: "Central Delhi",
+                        center: [28.6139, 77.2090],
+                        radius: 5000,
+                        avgAQI: 185,
+                        category: "Unhealthy",
+                        color: "#ff8c42",
+                        className: "unhealthy",
+                        description: "High traffic area with moderate pollution"
+                    },
+                    {
+                        id: 2,
+                        name: "Anand Vihar",
+                        center: [28.6468, 77.3164],
+                        radius: 4000,
+                        avgAQI: 320,
+                        category: "Hazardous",
+                        color: "#800080",
+                        className: "hazardous",
+                        description: "Industrial area, very high pollution"
+                    },
+                    {
+                        id: 3,
+                        name: "RK Puram",
+                        center: [28.5633, 77.1769],
+                        radius: 4500,
+                        avgAQI: 210,
+                        category: "Very Unhealthy",
+                        color: "#ff0000",
+                        className: "very-unhealthy",
+                        description: "Residential area with heavy traffic"
+                    },
+                    {
+                        id: 4,
+                        name: "Noida Sector 62",
+                        center: [28.6298, 77.3725],
+                        radius: 5500,
+                        avgAQI: 145,
+                        category: "Moderate",
+                        color: "#ffd700",
+                        className: "moderate",
+                        description: "IT hub with moderate pollution"
+                    },
+                    {
+                        id: 5,
+                        name: "Gurgaon Cyber City",
+                        center: [28.4951, 77.0886],
+                        radius: 5000,
+                        avgAQI: 165,
+                        category: "Unhealthy",
+                        color: "#ff8c42",
+                        className: "unhealthy",
+                        description: "Commercial area with high traffic"
+                    },
+                    {
+                        id: 6,
+                        name: "Dwarka",
+                        center: [28.5704, 77.0653],
+                        radius: 4800,
+                        avgAQI: 95,
+                        category: "Good",
+                        color: "#00e400",
+                        className: "good",
+                        description: "Suburban area with better air quality"
+                    },
+                    {
+                        id: 7,
+                        name: "Rohini",
+                        center: [28.7344, 77.0895],
+                        radius: 4200,
+                        avgAQI: 175,
+                        category: "Unhealthy",
+                        color: "#ff8c42",
+                        className: "unhealthy",
+                        description: "Residential area with moderate traffic"
+                    }
+                ],
+                maharashtra: [
+                    {
+                        id: 8,
+                        name: "South Mumbai",
+                        center: [18.9212, 72.8347],
+                        radius: 5000,
+                        avgAQI: 165,
+                        category: "Unhealthy",
+                        color: "#ff8c42",
+                        className: "unhealthy",
+                        description: "Commercial area with high traffic"
+                    },
+                    {
+                        id: 9,
+                        name: "Pune City",
+                        center: [18.5204, 73.8567],
+                        radius: 5500,
+                        avgAQI: 145,
+                        category: "Moderate",
+                        color: "#ffd700",
+                        className: "moderate",
+                        description: "IT hub with moderate pollution"
+                    },
+                    {
+                        id: 10,
+                        name: "Nagpur",
+                        center: [21.1458, 79.0882],
+                        radius: 5000,
+                        avgAQI: 95,
+                        category: "Good",
+                        color: "#00e400",
+                        className: "good",
+                        description: "City with good air quality"
+                    }
+                ]
+            };
+
+            // ========== HELPER FUNCTIONS ==========
+            function getZoneFromAQI(aqi) {
+                if (aqi <= 50) return { name: 'Good', color: '#00e400', risk: 'Low', className: 'good' };
+                if (aqi <= 100) return { name: 'Moderate', color: '#ffd700', risk: 'Moderate', className: 'moderate' };
+                if (aqi <= 150) return { name: 'Unhealthy for Sensitive', color: '#ff8c42', risk: 'Moderate', className: 'unhealthy' };
+                if (aqi <= 200) return { name: 'Unhealthy', color: '#ff8c42', risk: 'High', className: 'unhealthy' };
+                if (aqi <= 300) return { name: 'Very Unhealthy', color: '#ff0000', risk: 'Very High', className: 'very-unhealthy' };
+                return { name: 'Hazardous', color: '#800080', risk: 'Severe', className: 'hazardous' };
+            }
+
+            function getSensorClass(aqi) {
+                if (aqi <= 50) return 'good';
+                if (aqi <= 100) return 'moderate';
+                if (aqi <= 150) return 'unhealthy';
+                if (aqi <= 200) return 'unhealthy';
+                if (aqi <= 300) return 'very-unhealthy';
+                return 'hazardous';
+            }
+
+            function showAlert(message, type) {
+                const banner = document.getElementById('alertBanner');
+                const msgEl = document.getElementById('alertMessage');
+                if (!banner || !msgEl) return;
+
+                if (alertTimeout) clearTimeout(alertTimeout);
+
+                banner.style.display = 'flex';
+                banner.className = `alert-banner ${type}`;
+                msgEl.innerText = message;
+
+                alertTimeout = setTimeout(() => {
+                    banner.style.display = 'none';
+                }, 5000);
+            }
+
+            function showRiskAlert(message) {
+                const alert = document.getElementById('riskAlert');
+                const msgEl = document.getElementById('riskMessage');
+                if (!alert || !msgEl) return;
+
+                if (riskAlertTimeout) clearTimeout(riskAlertTimeout);
+
+                msgEl.innerText = message;
+                alert.style.display = 'flex';
+
+                riskAlertTimeout = setTimeout(() => {
+                    alert.style.display = 'none';
+                }, 3000);
+            }
+
+            function showZoneAlert(message, zone) {
+                const alert = document.getElementById('zoneAlert');
+                const msgEl = document.getElementById('zoneAlertMessage');
+                if (!alert || !msgEl) return;
+
+                if (zoneAlertTimeout) clearTimeout(zoneAlertTimeout);
+
+                msgEl.innerText = message;
+                alert.className = `zone-alert ${zone}`;
+                alert.style.display = 'flex';
+
+                zoneAlertTimeout = setTimeout(() => {
+                    alert.style.display = 'none';
+                }, 4000);
+            }
+
+            function showNotification(message, type = 'info') {
+                const toast = document.getElementById('alertToast');
+                const toastMsg = document.getElementById('toastMessage');
+                if (!toast || !toastMsg) return;
+
+                toastMsg.innerText = message;
+                toast.style.borderLeftColor = type === 'warning' ? '#ff9100' : '#4CAF50';
+                toast.querySelector('i').style.color = type === 'warning' ? '#ff9100' : '#4CAF50';
+
+                toast.classList.add('show');
+                toast.style.transform = 'translateX(-50%) translateY(0)';
+
+                setTimeout(() => {
+                    toast.style.transform = 'translateX(-50%) translateY(100px)';
+                }, 3000);
+            }
+
+            // ========== PANEL TOGGLE FUNCTION ==========
+            function togglePanel() {
+                const rightCol = document.getElementById('rightCol');
+                const leftCol = document.getElementById('leftCol');
+                const toggleBtn = document.getElementById('panelToggleBtn');
+
+                if (isPanelCollapsed) {
+                    rightCol.classList.remove('collapsed');
+                    leftCol.classList.remove('expanded');
+                    toggleBtn.innerHTML = '<i class="fas fa-chevron-right"></i>';
+                    toggleBtn.title = 'Hide Side Panel';
+                } else {
+                    rightCol.classList.add('collapsed');
+                    leftCol.classList.add('expanded');
+                    toggleBtn.innerHTML = '<i class="fas fa-chevron-left"></i>';
+                    toggleBtn.title = 'Show Side Panel';
+                }
+
+                isPanelCollapsed = !isPanelCollapsed;
+
+                setTimeout(() => {
+                    map.invalidateSize();
+                }, 300);
+            }
+
+            document.getElementById('panelToggleBtn')?.addEventListener('click', togglePanel);
+
+            // ========== HIDE LOADING OVERLAY ==========
+            function hideLoadingOverlay() {
+                const overlay = document.getElementById('loadingOverlay');
+                if (overlay) {
+                    overlay.classList.add('hidden');
+                    setTimeout(() => {
+                        overlay.style.display = 'none';
+                    }, 500);
+                }
+            }
+
+            // ========== THEME TOGGLE ==========
+            const themeToggle = document.getElementById('themeToggle');
+            if (themeToggle) {
+                const sunIcon = themeToggle.querySelector('.fa-sun');
+                const moonIcon = themeToggle.querySelector('.fa-moon');
+                const savedTheme = localStorage.getItem('theme') || 'light';
+                document.documentElement.setAttribute('data-theme', savedTheme);
+
+                if (savedTheme === 'light') {
+                    sunIcon?.classList.add('active');
+                    moonIcon?.classList.remove('active');
+                } else {
+                    moonIcon?.classList.add('active');
+                    sunIcon?.classList.remove('active');
+                }
+
+                themeToggle.addEventListener('click', function (e) {
+                    const target = e.target.closest('i');
+                    if (!target) return;
+                    const newTheme = target.dataset.theme;
+                    document.documentElement.setAttribute('data-theme', newTheme);
+                    localStorage.setItem('theme', newTheme);
+                    sunIcon?.classList.toggle('active', newTheme === 'light');
+                    moonIcon?.classList.toggle('active', newTheme === 'dark');
+                    if (pollutantChart) updateChartsTheme();
+                    if (hourlyChart) updateChartsTheme();
+                });
+            }
+
+            // ========== TAB SWITCHING ==========
+            const tabOverviewBtn = document.getElementById('tabOverviewBtn');
+            const tabInsightsBtn = document.getElementById('tabInsightsBtn');
+            const tabOverview = document.getElementById('tabOverview');
+            const tabInsights = document.getElementById('tabInsights');
+
+            function setActiveTab(tabId) {
+                tabOverview?.classList.remove('active');
+                tabInsights?.classList.remove('active');
+                tabOverviewBtn?.classList.remove('active');
+                tabInsightsBtn?.classList.remove('active');
+
+                if (tabId === 'overview') {
+                    tabOverview?.classList.add('active');
+                    tabOverviewBtn?.classList.add('active');
+                    setTimeout(() => map.invalidateSize(), 100);
+                } else {
+                    tabInsights?.classList.add('active');
+                    tabInsightsBtn?.classList.add('active');
+                    setTimeout(() => {
+                        if (!pollutantChart) initCharts();
+                        loadInsightsData();
+                    }, 100);
+                }
+            }
+
+            tabOverviewBtn?.addEventListener('click', () => setActiveTab('overview'));
+            tabInsightsBtn?.addEventListener('click', () => setActiveTab('insights'));
+
+            // ========== MAP INIT ==========
+            const map = L.map('map', {
+                center: [28.6139, 77.2090],
+                zoom: 10,
+                fadeAnimation: true,
+                zoomAnimation: true
+            });
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap'
+            }).addTo(map);
+
+            setTimeout(() => map.invalidateSize(), 200);
+            setTimeout(() => map.invalidateSize(), 500);
+            setTimeout(() => map.invalidateSize(), 1000);
+
+            // ========== HEATMAP ==========
+            function initHeatmap() {
+                heatmapLayer = L.heatLayer([], {
+                    radius: 40,
+                    blur: 25,
+                    maxZoom: 17,
+                    minOpacity: 0.3,
+                    gradient: {
+                        0.0: '#00e400',
+                        0.2: '#ffd700',
+                        0.4: '#ff8c42',
+                        0.6: '#ff0000',
+                        0.8: '#800080',
+                        1.0: '#800080'
+                    }
+                });
+
+                if (heatmapVisible) {
+                    map.addLayer(heatmapLayer);
+                    updateHeatmap();
+                }
+            }
+
+            async function updateHeatmap() {
+                if (!heatmapVisible || !isBackendConnected) return;
+
+                try {
+                    const response = await fetch(`${ENDPOINTS.heatmap}?region=${currentRegion}&_=${Date.now()}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.heatmap?.length) {
+                            const heatData = data.heatmap.map(p => [p.lat, p.lng, p.value / 500]);
+                            heatmapLayer.setLatLngs(heatData);
+                        }
+                    }
+                } catch (e) {
+                    console.error('Heatmap error:', e);
+                }
+            }
+
+            document.getElementById('heatmapToggleBtn')?.addEventListener('click', function () {
+                if (heatmapVisible) {
+                    map.removeLayer(heatmapLayer);
+                    heatmapVisible = false;
+                    this.classList.remove('active');
+                    document.getElementById('heatmapStatus').innerText = 'OFF';
+                    if (heatmapUpdateInterval) {
+                        clearInterval(heatmapUpdateInterval);
+                    }
+                } else {
+                    map.addLayer(heatmapLayer);
+                    heatmapVisible = true;
+                    this.classList.add('active');
+                    document.getElementById('heatmapStatus').innerText = 'ON';
+                    updateHeatmap();
+                    heatmapUpdateInterval = setInterval(updateHeatmap, 30000);
+                }
+            });
+
+            // ========== LOAD SENSORS ==========
+            async function loadSensors() {
+                if (!isBackendConnected) return;
+
+                try {
+                    const response = await fetch(`${ENDPOINTS.sensors}?region=${currentRegion}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        const sensors = data.sensors || [];
+
+                        sensorMarkers.forEach(m => map.removeLayer(m));
+                        sensorMarkers = [];
+
+                        sensors.forEach(sensor => {
+                            const zone = getZoneFromAQI(sensor.aqi);
+                            const sensorClass = getSensorClass(sensor.aqi);
+
+                            const marker = L.marker([sensor.lat, sensor.lng], {
+                                icon: L.divIcon({
+                                    className: 'sensor-marker',
+                                    html: `<div class="sensor-icon ${sensorClass}" title="${sensor.name} - AQI: ${sensor.aqi}">${sensor.aqi}</div>`,
+                                    iconSize: [28, 28],
+                                    iconAnchor: [14, 14]
+                                })
+                            }).addTo(map);
+
+                            marker.bindPopup(`
+                                <b>${sensor.name}</b><br>
+                                AQI: ${sensor.aqi}<br>
+                                Zone: ${zone.name}<br>
+                                PM2.5: ${sensor.pm25 || '--'} µg/m³<br>
+                                PM10: ${sensor.pm10 || '--'} µg/m³<br>
+                                Last Updated: ${sensor.timestamp || 'Now'}
+                            `);
+
+                            sensorMarkers.push(marker);
+                        });
+                    }
+                } catch (e) {
+                    console.error('Sensors error:', e);
+                }
+            }
+
+            // ========== LOAD ZONES ==========
+            async function loadZones() {
+                if (!isBackendConnected) return;
+
+                try {
+                    const response = await fetch(`${ENDPOINTS.zones}?region=${currentRegion}&_=${Date.now()}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        const zones = data.zones || [];
+
+                        zoneLayers.forEach(l => map.removeLayer(l));
+                        zoneLayers = [];
+
+                        zones.forEach(zone => {
+                            const zoneClass = getSensorClass(zone.avg_aqi);
+
+                            const circle = L.circle([zone.center_lat, zone.center_lng], {
+                                radius: zone.radius || 5000,
+                                color: zone.color,
+                                weight: 3,
+                                opacity: 0.8,
+                                fillColor: zone.color,
+                                fillOpacity: 0.25,
+                                className: `zone-circle ${zoneClass}`
+                            }).addTo(map);
+                            circle.bindPopup(`
+                                <b>${zone.name}</b><br>
+                                Average AQI: ${zone.avg_aqi}<br>
+                                Zone: ${zone.category}<br>
+                                Area: ${zone.area} km²
+                            `);
+
+                            zoneLayers.push(circle);
+                        });
+                    } else {
+                        loadDemoZones();
+                    }
+                } catch (e) {
+                    console.error('Zones error:', e);
+                    loadDemoZones();
+                }
+            }
+
+            // ========== LOAD DEMO ZONES ==========
+            function loadDemoZones() {
+                zoneLayers.forEach(l => map.removeLayer(l));
+                zoneLayers = [];
+
+                const zones = demoZones[currentRegion] || demoZones.delhi;
+
+                zones.forEach(zone => {
+                    const circle = L.circle(zone.center, {
+                        radius: zone.radius,
+                        color: zone.color,
+                        weight: 3,
+                        opacity: 0.8,
+                        fillColor: zone.color,
+                        fillOpacity: 0.25,
+                        className: `zone-circle ${zone.className}`
+                    }).addTo(map);
+
+                    circle.bindPopup(`
+                        <b>${zone.name}</b><br>
+                        Average AQI: ${zone.avgAQI}<br>
+                        Zone: ${zone.category}<br>
+                        Radius: ${(zone.radius / 1000).toFixed(1)} km<br>
+                        ${zone.description}
+                    `);
+
+                    zoneLayers.push(circle);
+                });
+            }
+
+            // ========== REGION SWITCHING ==========
+            function switchRegion(region) {
+                currentRegion = region;
+
+                document.querySelectorAll('.region-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll(`[data-region="${region}"]`).forEach(b => b.classList.add('active'));
+
+                document.getElementById('regionBadge').textContent = region === 'delhi' ? 'Delhi-NCR' : 'Maharashtra';
+
+                const center = region === 'delhi' ? [28.6139, 77.2090] : [19.0760, 72.8777];
+                const name = region === 'delhi' ? 'New Delhi' : 'Mumbai';
+
+                map.setView(center, 10);
+                fetchLocationData(center[0], center[1], name);
+
+                updateSuggestedChips();
+                loadHotspots();
+                loadSensors();
+                loadZones();
+                if (heatmapVisible) updateHeatmap();
+            }
+
+            document.querySelectorAll('.region-btn').forEach(btn => {
+                btn.addEventListener('click', () => switchRegion(btn.dataset.region));
+            });
+
+            // ========== SUGGESTED LOCATIONS ==========
+            function updateSuggestedChips() {
+                const container = document.getElementById('suggestedChips');
+                if (!container) return;
+
+                const suggestions = suggestedLocations[currentRegion];
+                container.innerHTML = suggestions.map(loc =>
+                    `<span class="location-chip" data-lat="${loc.lat}" data-lng="${loc.lng}" data-name="${loc.name}">${loc.name}</span>`
+                ).join('');
+
+                document.querySelectorAll('.location-chip').forEach(chip => {
+                    chip.addEventListener('click', function () {
+                        document.getElementById('startInput').value = this.dataset.name;
+                    });
+                });
+            }
+
+            // ========== BACKEND CONNECTION ==========
+            async function checkBackendConnection() {
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+                    const res = await fetch(ENDPOINTS.health, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+
+                    if (res.ok) {
+                        document.getElementById('connectionStatus').classList.add('connected');
+                        document.getElementById('backendStatus').innerText = 'Connected';
+                        if (!isBackendConnected) {
+                            isBackendConnected = true;
+                            const center = currentRegion === 'delhi' ? [28.6139, 77.2090] : [19.0760, 72.8777];
+                            await fetchLocationData(center[0], center[1], currentRegion === 'delhi' ? 'New Delhi' : 'Mumbai');
+                            await fetchForecast();
+                            await loadHotspots();
+                            await fetchPollutionSources();
+                            await loadSensors();
+                            await loadZones();
+                            if (heatmapVisible) {
+                                updateHeatmap();
+                                heatmapUpdateInterval = setInterval(updateHeatmap, 30000);
+                            }
+
+                            hideLoadingOverlay();
+                        }
+                        return true;
+                    } else {
+                        throw new Error('Backend error');
+                    }
+                } catch (e) {
+                    document.getElementById('connectionStatus').classList.remove('connected');
+                    document.getElementById('backendStatus').innerText = 'Disconnected';
+                    isBackendConnected = false;
+
+                    loadDemoZones();
+
+                    hideLoadingOverlay();
+                    showNotification('Backend disconnected - showing demo data', 'warning');
+                }
+                return false;
+            }
+
+            // ========== FETCH LOCATION DATA ==========
+            async function fetchLocationData(lat, lng, name) {
+                if (!isBackendConnected) return;
+
+                try {
+                    const res = await fetch(`${ENDPOINTS.predict}?lat=${lat}&lng=${lng}`);
+                    if (!res.ok) throw new Error('Failed');
+
+                    const data = await res.json();
+
+                    if (data.aqi !== undefined && data.aqi !== null) {
+                        const aqi = Math.round(data.aqi);
+                        const zone = getZoneFromAQI(aqi);
+
+                        document.getElementById('localAQI').innerText = aqi;
+                        document.getElementById('insightsAQI').innerText = aqi;
+
+                        const categoryEl = document.getElementById('aqiCategory');
+                        categoryEl.innerText = zone.name;
+                        categoryEl.className = `aqi-category ${zone.className}`;
+
+                        document.getElementById('insightsBadge').innerHTML = zone.name.toUpperCase();
+                        document.getElementById('placeName').innerText = name;
+                        document.getElementById('currentZone').innerText = zone.name;
+
+                        document.getElementById('insightsAqiCircle').style.background = zone.color;
+
+                        if (currentMarker) map.removeLayer(currentMarker);
+                        currentMarker = L.marker([lat, lng]).addTo(map)
+                            .bindPopup(`📍 ${name}`).openPopup();
+
+                        const pm25 = data.pm25 !== undefined ? Math.round(data.pm25) : '--';
+                        const pm10 = data.pm10 !== undefined ? Math.round(data.pm10) : '--';
+                        const no2 = data.no2 !== undefined ? Math.round(data.no2) : '--';
+                        const co = data.co !== undefined ? data.co.toFixed(1) : '--';
+                        const o3 = data.o3 !== undefined ? Math.round(data.o3) : '--';
+
+                        document.getElementById('pm25value').innerText = pm25;
+                        document.getElementById('pm10value').innerText = pm10;
+                        document.getElementById('no2value').innerText = no2;
+                        document.getElementById('covalue').innerText = co;
+                        document.getElementById('o3value').innerText = o3;
+
+                        document.getElementById('insightsPm25').innerText = pm25;
+                        document.getElementById('insightsPm10').innerText = pm10;
+                        document.getElementById('insightsNo2').innerText = no2;
+                        document.getElementById('insightsCo').innerText = co;
+                        document.getElementById('insightsO3').innerText = o3;
+
+                        if (pm25 !== '--') document.getElementById('pm25bar').style.width = Math.min(100, (pm25 / 300) * 100) + '%';
+                        if (pm10 !== '--') document.getElementById('pm10bar').style.width = Math.min(100, (pm10 / 300) * 100) + '%';
+                        if (no2 !== '--') document.getElementById('no2bar').style.width = Math.min(100, (no2 / 300) * 100) + '%';
+                        if (co !== '--') document.getElementById('cobar').style.width = Math.min(100, (co / 10) * 100) + '%';
+                        if (o3 !== '--') document.getElementById('o3bar').style.width = Math.min(100, (o3 / 200) * 100) + '%';
+
+                        if (data.temperature) {
+                            document.getElementById('temperature').innerText = data.temperature;
+                        }
+                        if (data.wind_speed) {
+                            document.getElementById('windSpeed').innerText = data.wind_speed;
+                        }
+                        if (data.wind_direction) {
+                            const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+                            const idx = Math.round((data.wind_direction % 360) / 45) % 8;
+                            document.getElementById('windDirection').innerText = dirs[idx];
+                        }
+
+                        document.getElementById('insightsRisk').innerHTML =
+                            `<i class="fas fa-exclamation-triangle"></i> <span>${zone.risk} risk for sensitive groups</span>`;
+
+                        const conf = data.confidence || 95;
+                        document.getElementById('insightsConfidence').innerText = conf;
+                        document.getElementById('insightsConfidenceFill').style.width = conf + '%';
+
+                        if (pollutantChart) {
+                            pollutantChart.data.datasets[0].data = [
+                                pm25 !== '--' ? pm25 : 0,
+                                pm10 !== '--' ? pm10 : 0,
+                                no2 !== '--' ? no2 : 0,
+                                co !== '--' ? (co * 10) : 0,
+                                o3 !== '--' ? o3 : 0
+                            ];
+                            pollutantChart.update();
+                        }
+
+                        if (heatmapVisible) {
+                            updateHeatmap();
+                        }
+                    }
+
+                } catch (e) {
+                    console.error('Fetch error:', e);
+                    showNotification('Failed to fetch location data', 'warning');
+                }
+            }
+
+            // ========== FETCH FORECAST ==========
+            async function fetchForecast(lat, lng) {
+                if (!isBackendConnected) return;
+
+                const container = document.getElementById('forecastList');
+                if (!container) return;
+
+                try {
+                    const targetLat = lat || (currentRegion === 'delhi' ? 28.6139 : 19.0760);
+                    const targetLng = lng || (currentRegion === 'delhi' ? 77.2090 : 72.8777);
+
+                    const res = await fetch(`${ENDPOINTS.forecast}?lat=${targetLat}&lng=${targetLng}&hours=24`);
+                    if (!res.ok) throw new Error('Failed');
+
+                    const data = await res.json();
+                    const forecast = data.forecast || [];
+
+                    if (!forecast.length) {
+                        container.innerHTML = '<div class="no-data">No forecast data available</div>';
+                        return;
+                    }
+
+                    const times = ['12 AM', '3 AM', '6 AM', '9 AM', '12 PM', '3 PM', '6 PM', '9 PM'];
+                    let html = '';
+                    let values = [];
+
+                    for (let i = 0; i < 8; i++) {
+                        const idx = i * 3;
+                        if (idx >= forecast.length) break;
+
+                        const aqi = Math.round(forecast[idx].aqi || 0);
+                        values.push(aqi);
+                        const zone = getZoneFromAQI(aqi);
+
+                        html += `
+                            <div class="forecast-item">
+                                <span class="forecast-time">${times[i]}</span>
+                                <div class="forecast-bar">
+                                    <div class="forecast-fill ${zone.className}" style="width: ${Math.min(100, aqi / 3)}%; background: ${zone.color};">
+                                        ${aqi}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    container.innerHTML = html;
+
+                    if (values.length) {
+                        const peak = Math.max(...values);
+                        const avg = Math.round(values.reduce((a, b) => a + b, 0) / values.length);
+                        document.getElementById('peakTime').innerText = peak;
+                        document.getElementById('avgAQI').innerText = avg;
+                        document.getElementById('insightsPeakTime').innerText = peak;
+                        document.getElementById('insightsAvg').innerText = avg;
+
+                        if (hourlyChart) {
+                            hourlyChart.data.datasets[0].data = values;
+                            hourlyChart.update();
+                        }
+                    }
+
+                } catch (e) {
+                    console.error('Forecast error:', e);
+                    container.innerHTML = '<div class="error-message">Failed to load forecast</div>';
+                }
+            }
+
+            // ========== LOAD HOTSPOTS ==========
+            async function loadHotspots() {
+                const container = document.getElementById('hotspotsList');
+                if (!container || !isBackendConnected) return;
+
+                try {
+                    const res = await fetch(`${ENDPOINTS.hotspots}?region=${currentRegion}&_=${Date.now()}`);
+                    if (!res.ok) throw new Error('Failed');
+
+                    const data = await res.json();
+                    const hotspots = data.hotspots || [];
+
+                    if (!hotspots.length) {
+                        container.innerHTML = '<div class="no-data">No hotspots data available</div>';
+                        return;
+                    }
+
+                    let html = '';
+                    hotspots.slice(0, 8).forEach(h => {
+                        let level = 'moderate';
+                        if (h.aqi > 300) level = 'critical';
+                        else if (h.aqi > 200) level = 'high';
+                        else if (h.aqi > 150) level = 'moderate';
+                        else level = 'good';
+
+                        html += `
+                            <div class="hotspot-item ${level}" onclick="window.loadLocation(${h.lat}, ${h.lng}, '${h.name}')">
+                                <span class="hotspot-name"><i class="fas fa-map-pin"></i> ${h.name}</span>
+                                <span class="hotspot-aqi">${h.aqi}</span>
+                            </div>
+                        `;
+                    });
+
+                    container.innerHTML = html;
+
+                } catch (e) {
+                    console.error('Hotspots error:', e);
+                    container.innerHTML = '<div class="error-message">Failed to load hotspots</div>';
+                }
+            }
+
+            // ========== FETCH POLLUTION SOURCES ==========
+            async function fetchPollutionSources() {
+                const container = document.getElementById('pollutionSources');
+                if (!container || !isBackendConnected) return;
+
+                try {
+                    const res = await fetch(`${ENDPOINTS.pollutionSources}?region=${currentRegion}`);
+                    if (!res.ok) throw new Error('Failed');
+
+                    const data = await res.json();
+                    const sources = data.sources || [];
+
+                    if (!sources.length) {
+                        container.innerHTML = '<div class="no-data">No pollution source data available</div>';
+                        return;
+                    }
+
+                    let html = '';
+                    sources.forEach(s => {
+                        html += `
+                            <div class="source-item">
+                                <div class="source-header">
+                                    <span><i class="fas ${s.icon || 'fa-industry'}"></i> ${s.name}</span>
+                                    <span>${s.percentage}%</span>
+                                </div>
+                                <div class="source-bar">
+                                    <div style="width: ${s.percentage}%;">${s.percentage}%</div>
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    container.innerHTML = html;
+
+                } catch (e) {
+                    console.error('Sources error:', e);
+                    container.innerHTML = '<div class="error-message">Failed to load sources</div>';
+                }
+            }
+
+            // ========== LOAD INSIGHTS DATA ==========
+            function loadInsightsData() {
+                const alerts = document.getElementById('alertsContainer');
+                const health = document.getElementById('healthAdvisories');
+
+                if (!isBackendConnected) return;
+
+                const aqi = parseInt(document.getElementById('localAQI').innerText) || 0;
+
+                if (aqi > 300) {
+                    health.innerHTML = `
+                        <div class="advisory critical">
+                            <i class="fas fa-skull-crosswalk"></i>
+                            <div><strong>Emergency Conditions</strong><br>Everyone should stay indoors</div>
+                        </div>
+                        <div class="advisory critical">
+                            <i class="fas fa-head-side-mask"></i>
+                            <div><strong>N95 Mask Mandatory</strong><br>Essential if going out</div>
+                        </div>
+                        <div class="advisory high">
+                            <i class="fas fa-clock"></i>
+                            <div><strong>Limit Exposure</strong><br>Maximum 15 minutes outdoors</div>
+                        </div>
+                    `;
+
+                    alerts.innerHTML = `
+                        <div class="alert-item critical">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <div><strong>Severe Health Alert</strong><br>Health emergency for all</div>
+                        </div>
+                        <div class="alert-item critical">
+                            <i class="fas fa-hospital"></i>
+                            <div><strong>Medical Attention</strong><br>Seek help if breathing difficulty</div>
+                        </div>
+                    `;
+                } else if (aqi > 200) {
+                    health.innerHTML = `
+                        <div class="advisory critical">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <div><strong>Stay Indoors</strong><br>Avoid all outdoor activities</div>
+                        </div>
+                        <div class="advisory high">
+                            <i class="fas fa-mask-face"></i>
+                            <div><strong>Wear N95 Mask</strong><br>Essential if going out</div>
+                        </div>
+                        <div class="advisory high">
+                            <i class="fas fa-lungs"></i>
+                            <div><strong>Respiratory Risk</strong><br>Sensitive groups at high risk</div>
+                        </div>
+                    `;
+
+                    alerts.innerHTML = `
+                        <div class="alert-item critical">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <div><strong>Critical Air Quality</strong><br>Health emergency for all</div>
+                        </div>
+                        <div class="alert-item high">
+                            <i class="fas fa-wind"></i>
+                            <div><strong>High Pollution Alert</strong><br>Avoid outdoor exercise</div>
+                        </div>
+                    `;
+                } else if (aqi > 150) {
+                    health.innerHTML = `
+                        <div class="advisory high">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <div><strong>Limit Outdoor Activity</strong><br>Sensitive groups at risk</div>
+                        </div>
+                        <div class="advisory medium">
+                            <i class="fas fa-mask-face"></i>
+                            <div><strong>Wear Mask</strong><br>Recommended outdoors</div>
+                        </div>
+                        <div class="advisory medium">
+                            <i class="fas fa-clock"></i>
+                            <div><strong>Take Breaks</strong><br>Rest frequently if outdoors</div>
+                        </div>
+                    `;
+
+                    alerts.innerHTML = `
+                        <div class="alert-item high">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <div><strong>High Pollution Alert</strong><br>Sensitive groups avoid outdoors</div>
+                        </div>
+                        <div class="alert-item warning">
+                            <i class="fas fa-lungs"></i>
+                            <div><strong>Respiratory Advisory</strong><br>Reduce prolonged exertion</div>
+                        </div>
+                    `;
+                } else if (aqi > 100) {
+                    health.innerHTML = `
+                        <div class="advisory medium">
+                            <i class="fas fa-clock"></i>
+                            <div><strong>Reduce Prolonged Exposure</strong><br>Take breaks if outdoors</div>
+                        </div>
+                        <div class="advisory medium">
+                            <i class="fas fa-mask-face"></i>
+                            <div><strong>Mask Recommended</strong><br>For sensitive individuals</div>
+                        </div>
+                        <div class="advisory good">
+                            <i class="fas fa-check-circle"></i>
+                            <div><strong>Outdoor Activities</strong><br>OK with caution</div>
+                        </div>
+                    `;
+
+                    alerts.innerHTML = `
+                        <div class="alert-item warning">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <div><strong>Moderate Pollution</strong><br>Caution for sensitive groups</div>
+                        </div>
+                        <div class="alert-item good">
+                            <i class="fas fa-info-circle"></i>
+                            <div><strong>Air Quality Advisory</strong><br>Monitor symptoms if sensitive</div>
+                        </div>
+                    `;
+                } else if (aqi > 0) {
+                    health.innerHTML = `
+                        <div class="advisory good">
+                            <i class="fas fa-check-circle"></i>
+                            <div><strong>Good Air Quality</strong><br>Safe for outdoor activities</div>
+                        </div>
+                        <div class="advisory good">
+                            <i class="fas fa-walking"></i>
+                            <div><strong>Perfect for Exercise</strong><br>Enjoy outdoor activities</div>
+                        </div>
+                        <div class="advisory good">
+                            <i class="fas fa-wind"></i>
+                            <div><strong>Ventilate</strong><br>Open windows for fresh air</div>
+                        </div>
+                    `;
+
+                    alerts.innerHTML = `
+                        <div class="alert-item good">
+                            <i class="fas fa-check-circle"></i>
+                            <div><strong>Good Air Quality</strong><br>No health risks</div>
+                        </div>
+                        <div class="alert-item good">
+                            <i class="fas fa-sun"></i>
+                            <div><strong>Safe Conditions</strong><br>Ideal for outdoor plans</div>
+                        </div>
+                    `;
+                } else {
+                    health.innerHTML = '<div class="no-data">No health advice available</div>';
+                    alerts.innerHTML = '<div class="no-data">No active alerts</div>';
+                }
+            }
+
+            // ========== ROUTE PLANNING ==========
+            document.getElementById('planRouteBtn')?.addEventListener('click', async function () {
+                const startName = document.getElementById('startInput').value;
+                const destName = document.getElementById('destInput').value;
+
+                if (!startName || !destName) {
+                    showNotification('Enter both locations', 'warning');
+                    return;
+                }
+
+                const startLoc = locations[currentRegion].find(l => l.name.toLowerCase() === startName.toLowerCase());
+                const destLoc = locations[currentRegion].find(l => l.name.toLowerCase() === destName.toLowerCase());
+
+                if (!startLoc || !destLoc) {
+                    showNotification('Please select locations from suggestions', 'warning');
+                    return;
+                }
+
+                try {
+                    if (safeRouteLayer) map.removeLayer(safeRouteLayer);
+                    if (pollutedRouteLayer) map.removeLayer(pollutedRouteLayer);
+                    if (startMarker) map.removeLayer(startMarker);
+                    if (destMarker) map.removeLayer(destMarker);
+
+                    startMarker = L.marker([startLoc.lat, startLoc.lng]).addTo(map).bindPopup(`Start: ${startLoc.name}`);
+                    destMarker = L.marker([destLoc.lat, destLoc.lng]).addTo(map).bindPopup(`Destination: ${destLoc.name}`);
+
+                    const res = await fetch(`${ENDPOINTS.safeRoute}?start_lat=${startLoc.lat}&start_lng=${startLoc.lng}&end_lat=${destLoc.lat}&end_lng=${destLoc.lng}`);
+                    if (!res.ok) throw new Error('Route failed');
+
+                    const data = await res.json();
+
+                    window.currentRouteData = data;
+
+                    pollutedRouteLayer = L.polyline(data.direct_route.path, {
+                        color: '#c5221f',
+                        weight: 5,
+                        opacity: 0.7,
+                        dashArray: '10, 10',
+                        lineCap: 'round',
+                        lineJoin: 'round'
+                    }).addTo(map);
+
+                    safeRouteLayer = L.polyline(data.safe_route.path, {
+                        color: '#2e7d32',
+                        weight: 6,
+                        opacity: 0.9,
+                        lineCap: 'round',
+                        lineJoin: 'round'
+                    }).addTo(map);
+
+                    document.getElementById('safeTime').innerText = `${data.safe_route.time_min} min`;
+                    document.getElementById('safeAQI').innerHTML = `AQI ${data.safe_route.avg_aqi}`;
+                    document.getElementById('pollutedTime').innerText = `${data.direct_route.time_min} min`;
+                    document.getElementById('pollutedAQI').innerHTML = `AQI ${data.direct_route.avg_aqi}`;
+
+                    document.getElementById('routeInfo').style.display = 'block';
+
+                    const bounds = L.latLngBounds([startLoc.lat, startLoc.lng], [destLoc.lat, destLoc.lng]);
+                    map.fitBounds(bounds, { padding: [50, 50] });
+
+                } catch (e) {
+                    console.error('Route error:', e);
+                    showNotification('Route planning failed', 'warning');
+                }
+            });
+
+            // ========== SUGGESTIONS ==========
+            function setupSuggestions() {
+                const startInput = document.getElementById('startInput');
+                const destInput = document.getElementById('destInput');
+                const startBox = document.getElementById('startSuggestions');
+                const destBox = document.getElementById('destSuggestions');
+
+                function showSuggestions(input, box, query) {
+                    if (query.length < 2) {
+                        box.classList.remove('show');
+                        return;
+                    }
+
+                    const matches = (locations[currentRegion] || []).filter(l =>
+                        l.name.toLowerCase().includes(query.toLowerCase())
+                    ).slice(0, 5);
+
+                    if (matches.length) {
+                        box.innerHTML = matches.map(l =>
+                            `<div class="suggestion-item" data-name="${l.name}"><i class="fas fa-map-marker-alt"></i> ${l.name}</div>`
+                        ).join('');
+                        box.classList.add('show');
+                    } else {
+                        box.classList.remove('show');
+                    }
+                }
+
+                startInput?.addEventListener('input', e => showSuggestions(startInput, startBox, e.target.value));
+                destInput?.addEventListener('input', e => showSuggestions(destInput, destBox, e.target.value));
+
+                startBox?.addEventListener('click', e => {
+                    const item = e.target.closest('.suggestion-item');
+                    if (item) {
+                        startInput.value = item.dataset.name;
+                        startBox.classList.remove('show');
+                    }
+                });
+
+                destBox?.addEventListener('click', e => {
+                    const item = e.target.closest('.suggestion-item');
+                    if (item) {
+                        destInput.value = item.dataset.name;
+                        destBox.classList.remove('show');
+                    }
+                });
+
+                document.addEventListener('click', e => {
+                    if (!startInput.contains(e.target) && !startBox.contains(e.target)) {
+                        startBox?.classList.remove('show');
+                    }
+                    if (!destInput.contains(e.target) && !destBox.contains(e.target)) {
+                        destBox?.classList.remove('show');
+                    }
+                });
+            }
+
+            // ========== SWAP POINTS ==========
+            document.getElementById('swapPoints')?.addEventListener('click', function () {
+                const start = document.getElementById('startInput');
+                const dest = document.getElementById('destInput');
+                [start.value, dest.value] = [dest.value, start.value];
+            });
+
+            // ========== USE CURRENT LOCATION ==========
+            document.getElementById('useCurrentLocation')?.addEventListener('click', function () {
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        pos => {
+                            const { latitude, longitude } = pos.coords;
+                            fetchLocationData(latitude, longitude, 'Your Location');
+                            fetchForecast(latitude, longitude);
+                            map.setView([latitude, longitude], 12);
+
+                            if (currentMarker) map.removeLayer(currentMarker);
+                            currentMarker = L.marker([latitude, longitude], {
+                                icon: L.divIcon({
+                                    className: 'current-marker',
+                                    html: '<div style="width:14px;height:14px;background:#2196F3;border-radius:50%;border:2px solid white;"></div>',
+                                    iconSize: [14, 14]
+                                })
+                            }).addTo(map).bindPopup('📍 Your Location');
+                        },
+                        () => {
+                            showNotification('Location access denied', 'warning');
+                        }
+                    );
+                }
+            });
+
+            // ========== VEHICLE SIMULATION ==========
+            const startSimBtn = document.getElementById('startSimBtn');
+            const stopSimBtn = document.getElementById('stopSimBtn');
+
+            document.querySelectorAll('.mode-option').forEach(opt => {
+                opt.addEventListener('click', function () {
+                    document.querySelectorAll('.mode-option').forEach(o => o.classList.remove('active'));
+                    this.classList.add('active');
+                    currentMode = this.dataset.mode;
+                    document.getElementById('simMode').innerText =
+                        currentMode === 'car' ? 'Car' : currentMode === 'walk' ? 'Walking' : 'Cycling';
+                });
+            });
+
+            startSimBtn?.addEventListener('click', async function () {
+                if (!window.currentRouteData) {
+                    showNotification('Please plan a route first', 'warning');
+                    return;
+                }
+
+                if (animationInterval) {
+                    clearInterval(animationInterval);
+                }
+                if (simulationMarker) {
+                    map.removeLayer(simulationMarker);
+                }
+
+                const routePath = window.currentRouteData.safe_route.path;
+
+                if (!routePath || routePath.length === 0) {
+                    showNotification('Invalid route path', 'warning');
+                    return;
+                }
+
+                simulationPath = routePath;
+                currentPathIndex = 0;
+
+                startSimBtn.disabled = true;
+                stopSimBtn.disabled = false;
+                document.getElementById('simStatus').innerText = 'Running';
+
+                const markerColor = currentMode === 'car' ? '#2e7d32' : currentMode === 'walk' ? '#2196F3' : '#ff8c42';
+                const markerIcon = currentMode === 'car' ? 'fa-car' : currentMode === 'walk' ? 'fa-walking' : 'fa-bicycle';
+
+                simulationMarker = L.marker(simulationPath[0], {
+                    icon: L.divIcon({
+                        className: 'vehicle-marker',
+                        html: `<i class="fas ${markerIcon}" style="font-size: 24px; color: ${markerColor}; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));"></i>`,
+                        iconSize: [30, 30],
+                        iconAnchor: [15, 15]
+                    })
+                }).addTo(map);
+
+                let readings = [];
+                let totalAQI = 0;
+                lastZoneAlert = '';
+
+                animationInterval = setInterval(async () => {
+                    if (currentPathIndex < simulationPath.length - 1) {
+                        currentPathIndex++;
+                        const pos = simulationPath[currentPathIndex];
+
+                        simulationMarker.setLatLng(pos);
+
+                        try {
+                            const res = await fetch(`${ENDPOINTS.predict}?lat=${pos[0]}&lng=${pos[1]}`);
+                            if (res.ok) {
+                                const data = await res.json();
+                                const aqi = Math.round(data.aqi || 0);
+                                const zone = getZoneFromAQI(aqi);
+
+                                readings.push(aqi);
+                                totalAQI += aqi;
+
+                                const progress = (currentPathIndex / (simulationPath.length - 1)) * 100;
+
+                                document.getElementById('simProgress').style.width = progress + '%';
+                                document.getElementById('simProgressText').innerText = progress.toFixed(1) + '%';
+                                document.getElementById('simCurrentAQI').innerText = aqi;
+                                document.getElementById('simZoneRisk').innerText = zone.risk;
+
+                                if (lastZoneAlert !== zone.name) {
+                                    setTimeout(() => {
+                                        showZoneAlert(`⚠️ Entering ${zone.name} Zone - AQI: ${aqi}`, zone.className);
+                                    }, 500);
+                                    lastZoneAlert = zone.name;
+                                }
+
+                                simulationMarker.setIcon(L.divIcon({
+                                    className: 'vehicle-marker',
+                                    html: `<i class="fas ${markerIcon}" style="font-size: 24px; color: ${zone.color}; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));"></i>`,
+                                    iconSize: [30, 30],
+                                    iconAnchor: [15, 15]
+                                }));
+                            }
+                        } catch (e) {
+                            console.error('Simulation AQI fetch error:', e);
+                        }
+
+                    } else {
+                        clearInterval(animationInterval);
+                        startSimBtn.disabled = false;
+                        stopSimBtn.disabled = true;
+                        document.getElementById('simStatus').innerText = 'Completed';
+
+                        const avgAQI = readings.length ? Math.round(totalAQI / readings.length) : 0;
+                        showNotification(`Journey completed! Avg AQI: ${avgAQI}`, 'info');
+                    }
+                }, 1000);
+            });
+
+            stopSimBtn?.addEventListener('click', function () {
+                if (animationInterval) {
+                    clearInterval(animationInterval);
+                    animationInterval = null;
+                }
+
+                if (simulationMarker) {
+                    map.removeLayer(simulationMarker);
+                    simulationMarker = null;
+                }
+
+                startSimBtn.disabled = false;
+                stopSimBtn.disabled = true;
+                document.getElementById('simStatus').innerText = 'Stopped';
+                document.getElementById('simProgress').style.width = '0%';
+                document.getElementById('simProgressText').innerText = '0%';
+                document.getElementById('simCurrentAQI').innerText = '--';
+                document.getElementById('simZoneRisk').innerText = 'None';
+            });
+
+            // ========== PANEL TOGGLES ==========
+            document.getElementById('routePanelHeader')?.addEventListener('click', function () {
+                document.getElementById('routePanel').classList.toggle('minimized');
+            });
+
+            document.getElementById('toggleSimulation')?.addEventListener('click', function (e) {
+                e.stopPropagation();
+                const panel = document.getElementById('simulationPanel');
+                panel.classList.toggle('minimized');
+                this.className = panel.classList.contains('minimized') ? 'fas fa-plus' : 'fas fa-minus';
+            });
+
+            document.getElementById('simulationHeader')?.addEventListener('click', function (e) {
+                if (!e.target.classList.contains('fa-plus') && !e.target.classList.contains('fa-minus')) {
+                    const panel = document.getElementById('simulationPanel');
+                    panel.classList.toggle('minimized');
+                    document.getElementById('toggleSimulation').className =
+                        panel.classList.contains('minimized') ? 'fas fa-plus' : 'fas fa-minus';
+                }
+            });
+
+            document.getElementById('mapLegendBtn')?.addEventListener('click', function () {
+                const legend = document.getElementById('mapLegend');
+                legend.style.display = legend.style.display === 'none' ? 'flex' : 'none';
+            });
+
+            document.getElementById('dismissAlert')?.addEventListener('click', function () {
+                document.getElementById('alertBanner').style.display = 'none';
+                if (alertTimeout) clearTimeout(alertTimeout);
+            });
+
+            // ========== CHARTS ==========
+            function initCharts() {
+                const ctx1 = document.getElementById('pollutantChart')?.getContext('2d');
+                if (ctx1 && !pollutantChart) {
+                    pollutantChart = new Chart(ctx1, {
+                        type: 'radar',
+                        data: {
+                            labels: ['PM2.5', 'PM10', 'NO₂', 'CO', 'O₃'],
+                            datasets: [{
+                                data: [0, 0, 0, 0, 0],
+                                backgroundColor: 'rgba(255, 140, 66, 0.2)',
+                                borderColor: '#ff8c42',
+                                borderWidth: 2,
+                                pointBackgroundColor: '#ff8c42',
+                                pointBorderColor: '#fff'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                r: {
+                                    beginAtZero: true,
+                                    max: 300,
+                                    ticks: {
+                                        stepSize: 50,
+                                        color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim()
+                                    },
+                                    grid: {
+                                        color: getComputedStyle(document.documentElement).getPropertyValue('--border').trim()
+                                    },
+                                    pointLabels: {
+                                        color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim()
+                                    }
+                                }
+                            },
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: { enabled: true }
+                            }
+                        }
+                    });
+                }
+
+                const ctx2 = document.getElementById('hourlyChart')?.getContext('2d');
+                if (ctx2 && !hourlyChart) {
+                    hourlyChart = new Chart(ctx2, {
+                        type: 'line',
+                        data: {
+                            labels: ['12 AM', '3 AM', '6 AM', '9 AM', '12 PM', '3 PM', '6 PM', '9 PM'],
+                            datasets: [{
+                                data: [0, 0, 0, 0, 0, 0, 0, 0],
+                                borderColor: '#ff8c42',
+                                backgroundColor: 'rgba(255, 140, 66, 0.1)',
+                                borderWidth: 3,
+                                fill: true,
+                                tension: 0.4,
+                                pointBackgroundColor: '#ff8c42',
+                                pointBorderColor: '#fff',
+                                pointRadius: 4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    max: 300,
+                                    ticks: {
+                                        stepSize: 50,
+                                        color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim()
+                                    },
+                                    grid: {
+                                        color: getComputedStyle(document.documentElement).getPropertyValue('--border').trim()
+                                    }
+                                },
+                                x: {
+                                    ticks: {
+                                        color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim()
+                                    },
+                                    grid: {
+                                        color: getComputedStyle(document.documentElement).getPropertyValue('--border').trim()
+                                    }
+                                }
+                            },
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: { enabled: true }
+                            }
+                        }
+                    });
+                }
+            }
+
+            function updateChartsTheme() {
+                if (pollutantChart) {
+                    pollutantChart.options.scales.r.grid.color = getComputedStyle(document.documentElement).getPropertyValue('--border').trim();
+                    pollutantChart.options.scales.r.pointLabels.color = getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim();
+                    pollutantChart.options.scales.r.ticks.color = getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim();
+                    pollutantChart.update();
+                }
+                if (hourlyChart) {
+                    hourlyChart.options.scales.y.grid.color = getComputedStyle(document.documentElement).getPropertyValue('--border').trim();
+                    hourlyChart.options.scales.y.ticks.color = getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim();
+                    hourlyChart.options.scales.x.ticks.color = getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim();
+                    hourlyChart.update();
+                }
+            }
+
+            // ========== INIT ==========
+            async function init() {
+                initHeatmap();
+                setupSuggestions();
+                updateSuggestedChips();
+                initCharts();
+
+                const insightsPopular = document.getElementById('insightsPopularLocations');
+                if (insightsPopular) {
+                    insightsPopular.innerHTML = suggestedLocations.delhi.map(loc =>
+                        `<span class="chip" data-lat="${loc.lat}" data-lng="${loc.lng}" data-name="${loc.name}">${loc.name}</span>`
+                    ).join('');
+
+                    document.querySelectorAll('#insightsPopularLocations .chip').forEach(chip => {
+                        chip.addEventListener('click', function () {
+                            const lat = parseFloat(this.dataset.lat);
+                            const lng = parseFloat(this.dataset.lng);
+                            const name = this.dataset.name;
+                            setActiveTab('overview');
+                            setTimeout(() => {
+                                document.getElementById('startInput').value = name;
+                                fetchLocationData(lat, lng, name);
+                                map.setView([lat, lng], 12);
+                            }, 100);
+                        });
+                    });
+                }
+
+                await checkBackendConnection();
+
+                connectionCheckInterval = setInterval(checkBackendConnection, 30000);
+
+                setTimeout(hideLoadingOverlay, 3000);
+
+                loadHotspots();
+                fetchPollutionSources();
+                loadInsightsData();
+
+                setInterval(() => {
+                    if (isBackendConnected) {
+                        loadHotspots();
+                        fetchPollutionSources();
+                        if (heatmapVisible) updateHeatmap();
+                    }
+                }, 60000);
+            }
+
+            init();
+
+            window.addEventListener('beforeunload', () => {
+                clearInterval(connectionCheckInterval);
+                clearInterval(animationInterval);
+                if (heatmapUpdateInterval) {
+                    clearInterval(heatmapUpdateInterval);
+                }
+            });
+
+            window.loadLocation = (lat, lng, name) => {
+                fetchLocationData(lat, lng, name);
+                fetchForecast(lat, lng);
+                map.setView([lat, lng], 12);
+            };
+
+        })();
+    </script>
+</body>
+
+</html>
