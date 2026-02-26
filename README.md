@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 # 🌬️ Vital Air
 
 **Vital Air** is a hyper-local air quality intelligence platform that predicts pollution blind spots and visualizes dynamic risk zones using spatial interpolation and short-term forecasting.
@@ -246,7 +246,10 @@ The system architecture supports scaling to additional cities across India.
 aws configure
 # Enter Access Key, Secret Key, region: eu-north-1
 
-min required create 2 s3 buckets and 3 dynamodb tables using cli commands 
+**Create:**
+
+2 S3 buckets
+3 DynamoDB tables
 
 ### Step 2: Install Required Packages
 
@@ -268,6 +271,7 @@ Vital Air was built with passion for cleaner cities and healthier lives.
 
 >>>>>>> 8591cc1a1e0c3484f0c845734400eedd5e71bce0
 Special thanks to open-source communities and public data providers.
+
 
 
 
