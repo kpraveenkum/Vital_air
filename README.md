@@ -116,7 +116,7 @@ The system architecture supports scaling to additional cities across India.
 
 ---
 
-<img width="1024" height="1536" alt="ChatGPT Image Feb 26, 2026, 10_39_13 PM" src="https://github.com/user-attachments/assets/bd6acfe9-86f6-4d86-86ff-954e6954e422" />
+<img width="600" height="750" alt="ChatGPT Image Feb 26, 2026, 10_39_13 PM" src="https://github.com/user-attachments/assets/bd6acfe9-86f6-4d86-86ff-954e6954e422" />
 
 📢 Acknowledgements
 
@@ -245,13 +245,21 @@ The system architecture supports scaling to additional cities across India.
 aws configure
 # Enter Access Key, Secret Key, region: eu-north-1
 
+min required create 2 s3 buckets and 3 dynamodb tables using cli commands 
+
 ### Step 2: Install Required Packages
 
 pip install fastapi uvicorn boto3 numpy python-dotenv httpx
 
+pip install python and remaining python library 
+
 ### Step 3: Run the Backend
 
 python -m uvicorn main:app --host 0.0.0.0 --port 3000
+
+or 
+
+python <file-name>
 
 📢 Acknowledgements
 
@@ -259,4 +267,5 @@ Vital Air was built with passion for cleaner cities and healthier lives.
 
 >>>>>>> 8591cc1a1e0c3484f0c845734400eedd5e71bce0
 Special thanks to open-source communities and public data providers.
+
 
