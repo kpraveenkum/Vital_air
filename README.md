@@ -116,12 +116,6 @@ The system architecture supports scaling to additional cities across India.
 
 ---
 
-## 🎯 Pitch in One Line
-
-**Vital Air transforms raw sensor data into life-saving intelligence, telling you if it’s safe to breathe—right here, right now.**
-
----
-
 ## ⚙️ Setup Instructions
 
 ### Step 1: AWS Setup
@@ -257,12 +251,6 @@ The system architecture supports scaling to additional cities across India.
 
 ---
 
-## 🎯 Pitch in One Line
-
-**Vital Air transforms raw sensor data into life-saving intelligence, telling you if it’s safe to breathe—right here, right now.**
-
----
-
 ## ⚙️ Setup Instructions
 
 ### Step 1: AWS Setup
@@ -280,5 +268,6 @@ python -m uvicorn main:app --host 0.0.0.0 --port 3000
 📢 Acknowledgements
 
 Vital Air was built with passion for cleaner cities and healthier lives.
+
 >>>>>>> 8591cc1a1e0c3484f0c845734400eedd5e71bce0
 Special thanks to open-source communities and public data providers.
