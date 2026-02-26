@@ -116,7 +116,8 @@ The system architecture supports scaling to additional cities across India.
 
 ---
 
-<img width="600" height="750" alt="ChatGPT Image Feb 26, 2026, 10_39_13 PM" src="https://github.com/user-attachments/assets/bd6acfe9-86f6-4d86-86ff-954e6954e422" />
+<img width="600" height="750" alt="image" src="https://github.com/user-attachments/assets/d327b566-6ccc-4738-ba59-c2923b7836b3" />
+
 
 📢 Acknowledgements
 
@@ -267,6 +268,7 @@ Vital Air was built with passion for cleaner cities and healthier lives.
 
 >>>>>>> 8591cc1a1e0c3484f0c845734400eedd5e71bce0
 Special thanks to open-source communities and public data providers.
+
 
 
 
