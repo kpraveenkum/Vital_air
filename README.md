@@ -259,7 +259,7 @@ python -m uvicorn main:app --host 0.0.0.0 --port 3000
 
 or 
 
-python <file-name>
+python file-name
 
 📢 Acknowledgements
 
@@ -267,5 +267,6 @@ Vital Air was built with passion for cleaner cities and healthier lives.
 
 >>>>>>> 8591cc1a1e0c3484f0c845734400eedd5e71bce0
 Special thanks to open-source communities and public data providers.
+
 
 
