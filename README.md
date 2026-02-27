@@ -242,7 +242,7 @@ The system architecture supports scaling to additional cities across India.
 
 ## ⚙️ Setup Instructions
 
-### Step 1: AWS Setup using iam user
+### Step 1: AWS Setup using IAM user
 aws configure
 # Enter Access Key, Secret Key, region: eu-north-1
 
@@ -251,7 +251,7 @@ aws configure
 2 S3 buckets
 3 DynamoDB tables,
 
-### step 3 : Permissions policies attach with iam user 
+### step 3 : Permissions policies attach with IAM user 
 AdministratorAccess
 
 AmazonDynamoDBFullAccess
@@ -290,6 +290,7 @@ Vital Air was built with passion for cleaner cities and healthier lives.
 
 >>>>>>> 8591cc1a1e0c3484f0c845734400eedd5e71bce0
 Special thanks to open-source communities and public data providers.
+
 
 
 
