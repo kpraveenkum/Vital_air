@@ -120,91 +120,58 @@ The system architecture supports scaling to additional cities across India.
 
 
 
+---
 
 ## Workflow
 
-Data Collection
-
-WAQI API → PM2.5 readings
-
-Weather API → Temperature, humidity, wind
-
-Traffic API → Congestion levels
-
-Fire anomaly API → Thermal hotspots
-
-Data Storage
-
-Raw API data → S3
-
-Processed records → DynamoDB
-
-Spatial Interpolation
-
-Apply Inverse Distance Weighting (IDW)
-
-Estimate PM2.5 in blind spots
-
-Prediction Engine
-
-Short-term forecasting:
-
-Now
-
-+3h
-
-+6h
-
-+12h
-
-Heatmap Rendering → S3
-
-
-Grid-based pollution values
-
-Color-coded severity zones
-
-Real-time updates on user selection
-
+-Data Collection
+-WAQI API → PM2.5 readings
+-Weather API → Temperature, humidity, wind
+-Traffic API → Congestion levels
+-Fire anomaly API → Thermal hotspots
+-Data Storage
+-Raw API data → S3
+-Processed records → DynamoDB
+-Spatial Interpolation
+-Apply Inverse Distance Weighting (IDW)
+-Estimate PM2.5 in blind spots
+-Prediction Engine
+-Short-term forecasting:
+-Now +3h +6h +12h
+-Heatmap Rendering → S3
+-Grid-based pollution values
+-Color-coded severity zones
+-Real-time updates on user selection
 
 
 ### ⚙️ Setup Instructions
 
-### Step 1: AWS Setup using IAM user
-aws configure
-# Enter Access Key, Secret Key, region: eu-north-1
+## Step 1: AWS Setup using IAM user
+-aws configure
+-Enter Access Key, Secret Key, region: eu-north-1
 
 ## step 2: Create
 
-2 S3 buckets
-3 DynamoDB tables,
+-Two S3 buckets
+-Three DynamoDB tables,
 
 ## step 3 : Permissions policies attach with IAM user 
-AdministratorAccess
 
-AmazonDynamoDBFullAccess
+-AdministratorAccess
+-AmazonDynamoDBFullAccess
+-AmazonEC2FullAccess
+-AWSLambda_FullAccess
+-AmazonS3FullAccess
+-AWSLambdaDynamoDBExecutionRole
+-CloudWatchLogsFullAccess
+-AmazonS3ObjectLambdaExecutionRolePolicy
 
-AmazonEC2FullAccess
+## Step 4: Install Required Packages
 
-AWSLambda_FullAccess
+-pip install fastapi uvicorn boto3 numpy python-dotenv httpx
+-pip install python and remaining python library 
 
-AmazonS3FullAccess
-
-AWSLambdaDynamoDBExecutionRole
-
-CloudWatchLogsFullAccess
-
-
-AmazonS3ObjectLambdaExecutionRolePolicy
-
-
-### Step 4: Install Required Packages
-
-pip install fastapi uvicorn boto3 numpy python-dotenv httpx
-
-pip install python and remaining python library 
-
-### Step 5: Run the Backend
+## Step 5: Run the Backend
 
 python -m uvicorn main:app --host 0.0.0.0 --port 3000
 
@@ -213,61 +180,46 @@ or
 python file-name
 
 
-
 ### Feasibility
 
-Uses publicly available APIs
+-Uses publicly available APIs
+-Serverless + EC2 hybrid reduces infrastructure cost
+-Python-based lightweight implementation
+-No expensive ML hardware required
 
-Serverless + EC2 hybrid reduces infrastructure cost
-
-Python-based lightweight implementation
-
-No expensive ML hardware required
-
+---
 
 ### Scalability
 
-DynamoDB auto-scales
+-DynamoDB auto-scales
+-Lambda handles burst traffic
+-S3 provides unlimited storage
+-Easily extendable to:
+-Additional Indian cities
+-International locations
+-Architecture supports horizontal scaling with minimal reconfiguration.
 
-Lambda handles burst traffic
-
-S3 provides unlimited storage
-
-Easily extendable to:
-
-Additional Indian cities
-
-International locations
-
-Architecture supports horizontal scaling with minimal reconfiguration.
-
+---
 
 ### Sustainability Impact
 
-Vital Air contributes to:
+-Vital Air contributes to:
+-Public Health Protection
+-Early warning for vulnerable populations
+-Reduced Exposure
+-Route optimization for commuters
+-Data-Driven Governance
+-Identify hidden hotspots
+-Enable targeted interventions
+-Climate Awareness
+-Improve citizen understanding of environmental risk.
 
-Public Health Protection
-
-Early warning for vulnerable populations
-
-Reduced Exposure
-
-Route optimization for commuters
-
-Data-Driven Governance
-
-Identify hidden hotspots
-
-Enable targeted interventions
-
-Climate Awareness
-
-Improve citizen understanding of environmental risk.
-
+---
 
 ### Acknowledgements
 
-Vital Air was built with passion for cleaner cities and healthier lives.
+--Vital Air was built with passion for cleaner cities and healthier lives.
+
 
 
 
