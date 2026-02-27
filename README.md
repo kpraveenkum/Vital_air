@@ -242,22 +242,41 @@ The system architecture supports scaling to additional cities across India.
 
 ## ⚙️ Setup Instructions
 
-### Step 1: AWS Setup
+### Step 1: AWS Setup using iam user
 aws configure
 # Enter Access Key, Secret Key, region: eu-north-1
 
-**Create:**
+### step 2: Create
 
 2 S3 buckets
-3 DynamoDB tables
+3 DynamoDB tables,
 
-### Step 2: Install Required Packages
+### step 3 : Permissions policies attach with iam user 
+AdministratorAccess
+
+AmazonDynamoDBFullAccess
+
+AmazonEC2FullAccess
+
+AWSLambda_FullAccess
+
+AmazonS3FullAccess
+
+AWSLambdaDynamoDBExecutionRole
+
+CloudWatchLogsFullAccess
+
+
+AmazonS3ObjectLambdaExecutionRolePolicy
+
+
+### Step 4: Install Required Packages
 
 pip install fastapi uvicorn boto3 numpy python-dotenv httpx
 
 pip install python and remaining python library 
 
-### Step 3: Run the Backend
+### Step 5: Run the Backend
 
 python -m uvicorn main:app --host 0.0.0.0 --port 3000
 
@@ -271,6 +290,7 @@ Vital Air was built with passion for cleaner cities and healthier lives.
 
 >>>>>>> 8591cc1a1e0c3484f0c845734400eedd5e71bce0
 Special thanks to open-source communities and public data providers.
+
 
 
 
